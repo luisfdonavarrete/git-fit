@@ -28,6 +28,26 @@ enum MealType: string
     }
 
     /**
+     * The sections of a day's food diary, in display order.
+     *
+     * @return list<self>
+     */
+    public static function diarySections(): array
+    {
+        return [self::Breakfast, self::Lunch, self::Dinner, self::Snack];
+    }
+
+    /**
+     * Recipe tags that suit this diary section; the snack section also offers high-protein snacks.
+     *
+     * @return list<self>
+     */
+    public function suggestedRecipeTags(): array
+    {
+        return $this === self::Snack ? [self::Snack, self::HighProteinSnack] : [$this];
+    }
+
+    /**
      * Every meal type with its label, in display order.
      *
      * @return list<array{value: string, label: string}>

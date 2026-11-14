@@ -103,3 +103,15 @@ it('returns zero totals and no targets for an empty day without a goal', functio
     expect($summary['totals']['calories'])->toBe(0)
         ->and($summary['targets']['calories'])->toBeNull();
 });
+
+it('rescales its own snapshot to new servings, keeping unknown macros null', function () {
+    $version = RecipeVersion::factory()->create(['calories' => 450, 'protein_g' => 35.5, 'fiber_g' => null, 'sodium_mg' => 801]);
+    $entry = MealEntry::factory()->fromRecipeVersion($version, 1.5)->create();
+
+    $entry->rescaleTo(3)->save();
+
+    expect($entry->refresh()->calories)->toBe(1350)
+        ->and($entry->protein_g)->toBe('106.6')
+        ->and($entry->fiber_g)->toBeNull()
+        ->and($entry->sodium_mg)->toBe(2404);
+});

@@ -1,25 +1,48 @@
 import { Head } from '@inertiajs/react';
-import { PlaceholderPattern } from '@/components/ui/placeholder-pattern';
+import DailySummary from '@/components/daily-summary';
+import DiaryDateNav from '@/components/diary-date-nav';
+import MealSection from '@/components/meal-section';
 import { dashboard } from '@/routes';
+import type { DiaryMeal, NutritionGoal, NutritionSummary } from '@/types';
 
-export default function Dashboard() {
+type Props = {
+    date: string;
+    today: string;
+    summary: NutritionSummary;
+    goal: NutritionGoal | null;
+    meals: DiaryMeal[];
+};
+
+export default function Dashboard({
+    date,
+    today,
+    summary,
+    goal,
+    meals,
+}: Props) {
     return (
         <>
-            <Head title="Dashboard" />
-            <div className="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4">
-                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+            <Head title="Food diary" />
+            <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 p-4 md:p-6">
+                <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                        <h1 className="text-2xl font-semibold tracking-tight">
+                            Food diary
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            Log what you eat and stay on top of calories and
+                            protein.
+                        </p>
                     </div>
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                    <div className="relative aspect-video overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border">
-                        <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
-                    </div>
-                </div>
-                <div className="relative min-h-[100vh] flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border">
-                    <PlaceholderPattern className="absolute inset-0 size-full stroke-neutral-900/20 dark:stroke-neutral-100/20" />
+                    <DiaryDateNav date={date} today={today} />
+                </header>
+
+                <DailySummary summary={summary} goal={goal} />
+
+                <div className="grid gap-4 lg:grid-cols-2">
+                    {meals.map((meal) => (
+                        <MealSection key={meal.type} meal={meal} date={date} />
+                    ))}
                 </div>
             </div>
         </>
@@ -29,7 +52,7 @@ export default function Dashboard() {
 Dashboard.layout = {
     breadcrumbs: [
         {
-            title: 'Dashboard',
+            title: 'Food diary',
             href: dashboard(),
         },
     ],

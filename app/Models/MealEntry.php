@@ -88,6 +88,37 @@ class MealEntry extends Model
     }
 
     /**
+     * Change the servings, scaling the entry's own snapshot so later recipe edits still don't leak in.
+     */
+    public function rescaleTo(float $servings): static
+    {
+        $previousHundredths = (int) round((float) $this->servings * 100);
+        $hundredths = (int) round($servings * 100);
+
+        if ($previousHundredths === $hundredths || $previousHundredths === 0) {
+            return $this;
+        }
+
+        foreach (self::MACROS as $macro) {
+            $value = $this->getAttribute($macro);
+
+            if ($value === null) {
+                continue;
+            }
+
+            $isInteger = in_array($macro, self::INTEGER_MACROS, true);
+            $unitsPerWhole = $isInteger ? 1 : 10;
+            $rounded = round((int) round((float) $value * $unitsPerWhole) * $hundredths / $previousHundredths) / $unitsPerWhole;
+
+            $this->setAttribute($macro, $isInteger ? (int) $rounded : $rounded);
+        }
+
+        $this->servings = (string) $servings;
+
+        return $this;
+    }
+
+    /**
      * Multiply a macro by servings in integer units (tenths × hundredths) so halves round up
      * exactly instead of drifting through float error (e.g. 4.1 × 1.5 = 6.2, not 6.1).
      */
