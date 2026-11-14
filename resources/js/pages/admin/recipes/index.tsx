@@ -6,7 +6,7 @@ import {
     Search,
     UtensilsCrossed,
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
     create,
     index,
@@ -56,12 +56,11 @@ export default function RecipesIndex({
     mealTypes,
 }: Props) {
     const [search, setSearch] = useState(filters.search);
-    const isFirstRender = useRef(true);
 
     useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-
+        // Only search when the box differs from what the server applied, so
+        // remounts (pagination, strict mode) don't reset the page.
+        if (search === filters.search) {
             return;
         }
 
