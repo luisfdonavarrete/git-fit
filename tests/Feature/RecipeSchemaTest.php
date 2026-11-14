@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\CalorieRange;
+use App\Enums\MealType;
 use App\Models\Recipe;
 use App\Models\RecipeIngredient;
 use App\Models\RecipeStep;
@@ -41,8 +42,10 @@ it('rejects a second version with the same calorie range on one recipe', functio
     RecipeVersion::factory()->for($recipe)->forCalorieRange(CalorieRange::From400)->create();
 })->throws(UniqueConstraintViolationException::class);
 
-it('deletes versions, steps, and ingredients when the recipe is deleted', function () {
+it('deletes versions, steps, ingredients, and meal types when the recipe is deleted', function () {
     $version = RecipeVersion::factory()->create();
+    $version->recipe->syncMealTypes([MealType::Lunch]);
+    $mealType = $version->recipe->mealTypes()->sole();
     $step = RecipeStep::factory()->for($version, 'version')->create();
     $ingredient = RecipeIngredient::factory()->for($version, 'version')->create();
 
@@ -51,7 +54,14 @@ it('deletes versions, steps, and ingredients when the recipe is deleted', functi
     $this->assertModelMissing($version);
     $this->assertModelMissing($step);
     $this->assertModelMissing($ingredient);
+    $this->assertModelMissing($mealType);
 });
+
+it('rejects the same meal type twice on one recipe', function () {
+    $recipe = Recipe::factory()->withMealTypes(MealType::Dinner)->create();
+
+    $recipe->mealTypes()->create(['meal_type' => MealType::Dinner]);
+})->throws(UniqueConstraintViolationException::class);
 
 it('labels each calorie range', function (CalorieRange $calorieRange, string $label) {
     expect($calorieRange->label())->toBe($label);
