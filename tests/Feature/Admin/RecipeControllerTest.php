@@ -30,7 +30,7 @@ test('recipes are listed with their versions', function () {
         ->component('admin/recipes/index')
         ->has('recipes.data', 1)
         ->has('recipes.data.0.versions', 1)
-        ->has('calorieRanges', 7)
+        ->has('calorieRanges', 8)
     );
 });
 

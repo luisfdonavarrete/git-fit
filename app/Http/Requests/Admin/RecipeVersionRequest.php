@@ -30,6 +30,7 @@ class RecipeVersionRequest extends FormRequest
                     ->ignore($version instanceof RecipeVersion ? $version->id : null),
             ],
             'calories' => ['required', 'integer', 'min:0', 'max:5000'],
+            'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:1440'],
             'protein_g' => ['nullable', 'numeric', 'min:0', 'max:9999'],
             'carbs_g' => ['nullable', 'numeric', 'min:0', 'max:9999'],
             'fat_g' => ['nullable', 'numeric', 'min:0', 'max:9999'],

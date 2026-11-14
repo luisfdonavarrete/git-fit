@@ -66,7 +66,8 @@ it('rejects the same meal type twice on one recipe', function () {
 it('labels each calorie range', function (CalorieRange $calorieRange, string $label) {
     expect($calorieRange->label())->toBe($label);
 })->with([
-    'lowest band' => [CalorieRange::From200, '200–300'],
+    'under 200' => [CalorieRange::Under200, 'Under 200'],
+    'lowest full band' => [CalorieRange::From200, '200–300'],
     'middle band' => [CalorieRange::From500, '500–600'],
     'open-ended top band' => [CalorieRange::Over800, '800+'],
 ]);

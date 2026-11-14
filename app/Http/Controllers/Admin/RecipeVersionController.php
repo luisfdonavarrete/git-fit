@@ -22,12 +22,14 @@ class RecipeVersionController extends Controller
     {
         $ranges = collect($this->rangeOptions($recipe));
         $available = $ranges->where('available', true);
-        $requested = $request->integer('range');
+        $requested = $request->filled('range') ? $request->integer('range') : null;
 
         return Inertia::render('admin/recipes/versions/create', [
             'recipe' => $recipe->only('id', 'name'),
             'calorieRanges' => $ranges->all(),
-            'selectedRange' => $available->contains('value', $requested) ? $requested : $available->first()['value'] ?? null,
+            'selectedRange' => $requested !== null && $available->contains('value', $requested)
+                ? $requested
+                : ($available->firstWhere('value', '>=', CalorieRange::From200->value) ?? $available->first())['value'] ?? null,
         ]);
     }
 

@@ -17,8 +17,8 @@ test('the create page marks ranges the recipe already has as unavailable', funct
 
     $response->assertOk()->assertInertia(fn (Assert $page) => $page
         ->component('admin/recipes/versions/create')
-        ->where('calorieRanges.0', ['value' => 200, 'label' => '200–300', 'available' => false])
-        ->where('calorieRanges.1.available', true)
+        ->where('calorieRanges.1', ['value' => 200, 'label' => '200–300', 'available' => false])
+        ->where('calorieRanges.2.available', true)
         ->where('selectedRange', 500)
     );
 });
@@ -33,12 +33,31 @@ test('the create page preselects the first free range when the requested one is 
     $response->assertInertia(fn (Assert $page) => $page->where('selectedRange', 300));
 });
 
+test('the create page preselects the first range from 200 up when none is requested', function () {
+    $recipe = Recipe::factory()->create();
+
+    $response = $this->actingAs(User::factory()->create())
+        ->get(route('admin.recipes.versions.create', $recipe));
+
+    $response->assertInertia(fn (Assert $page) => $page->where('selectedRange', 200));
+});
+
+test('the create page can preselect the under 200 range', function () {
+    $recipe = Recipe::factory()->create();
+
+    $response = $this->actingAs(User::factory()->create())
+        ->get(route('admin.recipes.versions.create', [$recipe, 'range' => 0]));
+
+    $response->assertInertia(fn (Assert $page) => $page->where('selectedRange', 0));
+});
+
 test('a version is stored with its ingredients and steps in submitted order', function () {
     $recipe = Recipe::factory()->create();
 
     $response = $this->actingAs(User::factory()->create())->post(route('admin.recipes.versions.store', $recipe), [
         'calorie_range' => 400,
         'calories' => 450,
+        'prep_minutes' => 25,
         'protein_g' => '32.5',
         'notes' => 'Use thighs for extra juiciness.',
         'ingredients' => [
@@ -56,6 +75,7 @@ test('a version is stored with its ingredients and steps in submitted order', fu
         ->assertRedirect(route('admin.recipes.show', [$recipe, 'range' => 400]));
     expect($version->calorie_range)->toBe(CalorieRange::From400)
         ->and($version->calories)->toBe(450)
+        ->and($version->prep_minutes)->toBe(25)
         ->and($version->protein_g)->toBe('32.5')
         ->and($version->notes)->toBe('Use thighs for extra juiciness.');
     expect($version->ingredients->map->only('position', 'name', 'note')->all())->toBe([

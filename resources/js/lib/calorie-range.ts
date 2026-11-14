@@ -10,10 +10,15 @@ type RangeTone = {
 };
 
 /**
- * A light-to-hearty ramp: cool greens for the lightest versions,
+ * A light-to-hearty ramp: sky blue under 200, then greens for the lightest versions,
  * warming through amber to rose for 800+.
  */
 const tones: Record<CalorieRangeValue, RangeTone> = {
+    0: {
+        badge: 'bg-sky-50 text-sky-700 ring-sky-600/20 dark:bg-sky-400/10 dark:text-sky-300 dark:ring-sky-400/25',
+        solid: 'bg-sky-500',
+        ring: 'ring-sky-500/60 border-sky-500/60',
+    },
     200: {
         badge: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-400/10 dark:text-emerald-300 dark:ring-emerald-400/25',
         solid: 'bg-emerald-500',
@@ -56,6 +61,10 @@ export function rangeTone(value: CalorieRangeValue): RangeTone {
 }
 
 export function rangeLabel(value: CalorieRangeValue): string {
+    if (value === 0) {
+        return 'Under 200';
+    }
+
     return value === 800 ? '800+' : `${value}–${value + 100}`;
 }
 
@@ -66,6 +75,10 @@ export function caloriesFitRange(
     calories: number,
     value: CalorieRangeValue,
 ): boolean {
+    if (value === 0) {
+        return calories < 200;
+    }
+
     return value === 800
         ? calories >= 800
         : calories >= value && calories < value + 100;

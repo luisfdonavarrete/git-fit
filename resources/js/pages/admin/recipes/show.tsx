@@ -1,5 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import {
+    Clock,
     ListOrdered,
     Lightbulb,
     Pencil,
@@ -55,7 +56,7 @@ export default function ShowRecipe({ recipe, calorieRanges }: Props) {
     );
 
     const byRange = new Map(versions.map((v) => [v.calorie_range, v]));
-    const current = selected ? byRange.get(selected) : undefined;
+    const current = selected !== null ? byRange.get(selected) : undefined;
 
     return (
         <>
@@ -64,9 +65,9 @@ export default function ShowRecipe({ recipe, calorieRanges }: Props) {
             <div className="flex flex-1 flex-col gap-6 p-4 md:p-6">
                 <header className="flex flex-col gap-5 md:flex-row md:items-start">
                     <div className="size-24 shrink-0 overflow-hidden rounded-xl border bg-muted md:size-28">
-                        {recipe.image_path ? (
+                        {recipe.image_url ? (
                             <img
-                                src={recipe.image_path}
+                                src={recipe.image_url}
                                 alt=""
                                 className="size-full object-cover"
                             />
@@ -127,7 +128,7 @@ export default function ShowRecipe({ recipe, calorieRanges }: Props) {
 
                 <nav
                     aria-label="Calorie versions"
-                    className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7"
+                    className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8"
                 >
                     {calorieRanges.map((range) => {
                         const version = byRange.get(range.value);
@@ -270,6 +271,12 @@ function VersionDetail({
                             kcal / serving
                         </span>
                     </div>
+                    {version.prep_minutes != null && (
+                        <p className="mt-1 flex items-center gap-1.5 text-sm text-muted-foreground">
+                            <Clock className="size-3.5" />
+                            {formatMinutes(version.prep_minutes)}
+                        </p>
+                    )}
 
                     <MacroBar
                         className="mt-5"
@@ -371,6 +378,17 @@ function VersionDetail({
             </div>
         </div>
     );
+}
+
+function formatMinutes(minutes: number): string {
+    const hours = Math.floor(minutes / 60);
+    const rest = minutes % 60;
+
+    if (hours === 0) {
+        return `${rest} min`;
+    }
+
+    return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
 }
 
 function EmptySection({ children }: { children: React.ReactNode }) {

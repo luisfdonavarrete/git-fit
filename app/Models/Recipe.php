@@ -4,12 +4,16 @@ namespace App\Models;
 
 use App\Enums\MealType;
 use Database\Factories\RecipeFactory;
+use Illuminate\Database\Eloquent\Attributes\Appends;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 /**
  * @property int $id
@@ -17,14 +21,30 @@ use Illuminate\Support\Carbon;
  * @property string $slug
  * @property string|null $description
  * @property string|null $image_path
+ * @property-read string|null $image_url
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
 #[Fillable(['name', 'slug', 'description', 'image_path'])]
+#[Appends(['image_url'])]
 class Recipe extends Model
 {
     /** @use HasFactory<RecipeFactory> */
     use HasFactory;
+
+    /**
+     * A browser-ready URL for the image: external URLs as-is, stored files via the public disk.
+     *
+     * @return Attribute<string|null, never>
+     */
+    protected function imageUrl(): Attribute
+    {
+        return Attribute::get(fn (): ?string => match (true) {
+            blank($this->image_path) => null,
+            Str::startsWith($this->image_path, ['http://', 'https://']) => $this->image_path,
+            default => Storage::disk('public')->url($this->image_path),
+        });
+    }
 
     /**
      * The calorie versions available for this recipe, lowest band first.

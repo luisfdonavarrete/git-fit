@@ -1,4 +1,4 @@
-export type CalorieRangeValue = 200 | 300 | 400 | 500 | 600 | 700 | 800;
+export type CalorieRangeValue = 0 | 200 | 300 | 400 | 500 | 600 | 700 | 800;
 
 export type CalorieRangeOption = {
     value: CalorieRangeValue;
@@ -44,6 +44,7 @@ export type RecipeVersion = {
     recipe_id: number;
     calorie_range: CalorieRangeValue;
     calories: number;
+    prep_minutes: number | null;
     protein_g: string | null;
     carbs_g: string | null;
     fat_g: string | null;
@@ -61,6 +62,7 @@ export type Recipe = {
     slug: string;
     description: string | null;
     image_path: string | null;
+    image_url: string | null;
     created_at: string;
     updated_at: string;
     versions?: RecipeVersion[];

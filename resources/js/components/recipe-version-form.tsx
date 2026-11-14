@@ -43,6 +43,7 @@ type StepRow = {
 type VersionFormData = {
     calorie_range: CalorieRangeValue | null;
     calories: string;
+    prep_minutes: string;
     protein_g: string;
     carbs_g: string;
     fat_g: string;
@@ -130,6 +131,8 @@ export default function RecipeVersionForm({
     const form = useForm<VersionFormData>({
         calorie_range: version?.calorie_range ?? initialRange ?? null,
         calories: version ? String(version.calories) : '',
+        prep_minutes:
+            version?.prep_minutes != null ? String(version.prep_minutes) : '',
         protein_g: version?.protein_g ?? '',
         carbs_g: version?.carbs_g ?? '',
         fat_g: version?.fat_g ?? '',
@@ -213,7 +216,7 @@ export default function RecipeVersionForm({
                     <div
                         role="radiogroup"
                         aria-label="Calorie range"
-                        className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7"
+                        className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8"
                     >
                         {ranges.map((range) => {
                             const selected = data.calorie_range === range.value;
@@ -272,35 +275,61 @@ export default function RecipeVersionForm({
                     description="Per serving. Leave anything you don't track blank."
                 >
                     <div className="grid gap-5">
-                        <div className="grid gap-2 sm:max-w-56">
-                            <Label htmlFor="calories">Calories</Label>
-                            <div className="relative">
-                                <Input
-                                    id="calories"
-                                    type="number"
-                                    inputMode="numeric"
-                                    min={0}
-                                    value={data.calories}
-                                    onChange={(e) =>
-                                        setData('calories', e.target.value)
-                                    }
-                                    required
-                                    className="h-11 pr-14 text-lg font-semibold tabular-nums"
-                                />
-                                <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
-                                    kcal
-                                </span>
+                        <div className="flex flex-wrap items-start gap-4">
+                            <div className="grid w-full gap-2 sm:w-56">
+                                <Label htmlFor="calories">Calories</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="calories"
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={0}
+                                        value={data.calories}
+                                        onChange={(e) =>
+                                            setData('calories', e.target.value)
+                                        }
+                                        required
+                                        className="h-11 pr-14 text-lg font-semibold tabular-nums"
+                                    />
+                                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
+                                        kcal
+                                    </span>
+                                </div>
+                                {showFitWarning &&
+                                    data.calorie_range !== null && (
+                                        <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                                            <AlertTriangle className="size-3.5" />
+                                            Outside the{' '}
+                                            {rangeLabel(data.calorie_range)}{' '}
+                                            range
+                                        </p>
+                                    )}
+                                <InputError message={errors.calories} />
                             </div>
-                            {showFitWarning && data.calorie_range && (
-                                <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
-                                    <AlertTriangle className="size-3.5" />
-                                    Outside the {rangeLabel(
-                                        data.calorie_range,
-                                    )}{' '}
-                                    range
-                                </p>
-                            )}
-                            <InputError message={errors.calories} />
+
+                            <div className="grid w-full gap-2 sm:w-40">
+                                <Label htmlFor="prep_minutes">Prep time</Label>
+                                <div className="relative">
+                                    <Input
+                                        id="prep_minutes"
+                                        type="number"
+                                        inputMode="numeric"
+                                        min={0}
+                                        value={data.prep_minutes}
+                                        onChange={(e) =>
+                                            setData(
+                                                'prep_minutes',
+                                                e.target.value,
+                                            )
+                                        }
+                                        className="h-11 pr-12 tabular-nums"
+                                    />
+                                    <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-muted-foreground">
+                                        min
+                                    </span>
+                                </div>
+                                <InputError message={errors.prep_minutes} />
+                            </div>
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-3">
@@ -569,7 +598,7 @@ export default function RecipeVersionForm({
                             kcal
                         </span>
                     </div>
-                    {data.calorie_range && (
+                    {data.calorie_range !== null && (
                         <p className="mt-1 text-sm text-muted-foreground">
                             {rangeLabel(data.calorie_range)} kcal version
                         </p>

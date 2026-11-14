@@ -37,6 +37,13 @@ export default function RecipeForm({
     const [imageUrl, setImageUrl] = useState(recipe?.image_path ?? '');
     const [imageFailed, setImageFailed] = useState(false);
 
+    // Stored photos are paths on the public disk; preview them via the server-built URL.
+    const previewUrl = /^https?:\/\//.test(imageUrl)
+        ? imageUrl
+        : imageUrl !== '' && imageUrl === recipe?.image_path
+          ? recipe.image_url
+          : null;
+
     const slugPreview = slug ? slugify(slug) : slugify(name);
     const selectedMealTypes = new Set(
         recipe?.meal_types?.map((m) => m.meal_type) ?? [],
@@ -153,11 +160,10 @@ export default function RecipeForm({
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="image_path">Image URL</Label>
+                            <Label htmlFor="image_path">Image</Label>
                             <Input
                                 id="image_path"
                                 name="image_path"
-                                type="url"
                                 value={imageUrl}
                                 onChange={(e) => {
                                     setImageUrl(e.target.value);
@@ -165,6 +171,10 @@ export default function RecipeForm({
                                 }}
                                 placeholder="https://…"
                             />
+                            <p className="text-xs text-muted-foreground">
+                                An image URL, or a path to a stored photo (e.g.
+                                recipes/my-recipe.jpg).
+                            </p>
                             <InputError message={errors.image_path} />
                         </div>
 
@@ -182,9 +192,9 @@ export default function RecipeForm({
                         <p className="text-sm font-medium">Preview</p>
                         <div className="overflow-hidden rounded-xl border bg-card">
                             <div className="flex aspect-[4/3] items-center justify-center bg-muted">
-                                {imageUrl && !imageFailed ? (
+                                {previewUrl && !imageFailed ? (
                                     <img
-                                        src={imageUrl}
+                                        src={previewUrl}
                                         alt=""
                                         className="size-full object-cover"
                                         onError={() => setImageFailed(true)}

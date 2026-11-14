@@ -205,9 +205,9 @@ function RecipeCard({
             className="group flex h-full flex-col overflow-hidden rounded-xl border bg-card shadow-xs transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
         >
             <div className="relative aspect-[16/10] overflow-hidden bg-muted">
-                {recipe.image_path ? (
+                {recipe.image_url ? (
                     <img
-                        src={recipe.image_path}
+                        src={recipe.image_url}
                         alt=""
                         loading="lazy"
                         className="size-full object-cover transition-transform duration-500 group-hover:scale-105"
