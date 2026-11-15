@@ -24,7 +24,8 @@ class RecipeVersionFactory extends Factory
         return [
             'recipe_id' => Recipe::factory(),
             'calorie_range' => $calorieRange,
-            'calories' => fake()->numberBetween($calorieRange->value, $calorieRange->value + 99),
+            'calories' => self::caloriesWithin($calorieRange),
+            'prep_minutes' => fake()->randomElement([5, 10, 15, 20, 25, 30, 45, 60]),
             'protein_g' => fake()->randomFloat(1, 5, 60),
             'carbs_g' => fake()->randomFloat(1, 5, 100),
             'fat_g' => fake()->randomFloat(1, 2, 40),
@@ -42,8 +43,18 @@ class RecipeVersionFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'calorie_range' => $calorieRange,
-            'calories' => fake()->numberBetween($calorieRange->value, $calorieRange->value + 99),
+            'calories' => self::caloriesWithin($calorieRange),
         ]);
+    }
+
+    /**
+     * A calorie count that falls inside the given band.
+     */
+    private static function caloriesWithin(CalorieRange $calorieRange): int
+    {
+        return $calorieRange === CalorieRange::Under200
+            ? fake()->numberBetween(80, 199)
+            : fake()->numberBetween($calorieRange->value, $calorieRange->value + 99);
     }
 
     /**

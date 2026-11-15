@@ -16,6 +16,7 @@ use Illuminate\Support\Carbon;
  * @property int $recipe_id
  * @property CalorieRange $calorie_range
  * @property int $calories
+ * @property int|null $prep_minutes
  * @property string|null $protein_g
  * @property string|null $carbs_g
  * @property string|null $fat_g
@@ -29,6 +30,7 @@ use Illuminate\Support\Carbon;
 #[Fillable([
     'calorie_range',
     'calories',
+    'prep_minutes',
     'protein_g',
     'carbs_g',
     'fat_g',
@@ -78,6 +80,7 @@ class RecipeVersion extends Model
         return [
             'calorie_range' => CalorieRange::class,
             'calories' => 'integer',
+            'prep_minutes' => 'integer',
             'protein_g' => 'decimal:1',
             'carbs_g' => 'decimal:1',
             'fat_g' => 'decimal:1',

@@ -1,0 +1,237 @@
+import { router } from '@inertiajs/react';
+import {
+    ArrowRightLeft,
+    MoreHorizontal,
+    Pencil,
+    Trash2,
+    UtensilsCrossed,
+} from 'lucide-react';
+import { useState } from 'react';
+import {
+    destroy,
+    update,
+} from '@/actions/App/Http/Controllers/MealEntryController';
+import CalorieRangeBadge from '@/components/calorie-range-badge';
+import ServingsStepper from '@/components/servings-stepper';
+import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuSub,
+    DropdownMenuSubContent,
+    DropdownMenuSubTrigger,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { mealTypeIcons, mealTypeLabels } from '@/lib/meal-type';
+import { formatGrams, formatServings, grams } from '@/lib/nutrition';
+import type { DiaryEntry, DiaryMealType } from '@/types';
+
+const diarySections: DiaryMealType[] = [
+    'breakfast',
+    'lunch',
+    'dinner',
+    'snack',
+];
+
+export default function MealEntryRow({
+    entry,
+    mealType,
+}: {
+    entry: DiaryEntry;
+    mealType: DiaryMealType;
+}) {
+    const [editing, setEditing] = useState(false);
+    const servings = Number(entry.servings);
+
+    const move = (target: DiaryMealType) =>
+        router.visit(update(entry.id), {
+            data: { meal_type: target, servings },
+            preserveScroll: true,
+        });
+
+    const remove = () =>
+        router.visit(destroy(entry.id), { preserveScroll: true });
+
+    return (
+        <li className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/40">
+            <div className="size-11 shrink-0 overflow-hidden rounded-lg bg-muted">
+                {entry.image_url ? (
+                    <img
+                        src={entry.image_url}
+                        alt=""
+                        loading="lazy"
+                        className="size-full object-cover"
+                    />
+                ) : (
+                    <div className="flex size-full items-center justify-center">
+                        <UtensilsCrossed className="size-4 text-muted-foreground/50" />
+                    </div>
+                )}
+            </div>
+
+            <button
+                type="button"
+                onClick={() => setEditing(true)}
+                className="min-w-0 flex-1 text-left outline-none"
+            >
+                <span className="block truncate text-sm font-medium">
+                    {entry.name}
+                </span>
+                <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    <CalorieRangeBadge
+                        value={entry.calorie_range}
+                        className="px-1.5 py-0 text-[11px]"
+                    />
+                    {formatServings(servings)}
+                </span>
+            </button>
+
+            <div className="text-right tabular-nums">
+                <span className="block text-sm font-semibold">
+                    {entry.calories}
+                </span>
+                <span className="block text-xs text-sky-600 dark:text-sky-400">
+                    {formatGrams(grams(entry.protein_g))} P
+                </span>
+            </div>
+
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8 shrink-0 text-muted-foreground opacity-100 data-[state=open]:opacity-100 sm:opacity-0 sm:group-hover:opacity-100"
+                        aria-label={`Options for ${entry.name}`}
+                    >
+                        <MoreHorizontal />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                    <DropdownMenuItem onSelect={() => setEditing(true)}>
+                        <Pencil />
+                        Edit servings
+                    </DropdownMenuItem>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            <ArrowRightLeft />
+                            Move to
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                            {diarySections
+                                .filter((section) => section !== mealType)
+                                .map((section) => {
+                                    const Icon = mealTypeIcons[section];
+
+                                    return (
+                                        <DropdownMenuItem
+                                            key={section}
+                                            onSelect={() => move(section)}
+                                        >
+                                            <Icon />
+                                            {mealTypeLabels[section]}
+                                        </DropdownMenuItem>
+                                    );
+                                })}
+                        </DropdownMenuSubContent>
+                    </DropdownMenuSub>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onSelect={remove}>
+                        <Trash2 />
+                        Remove
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <EditServingsDialog
+                entry={entry}
+                open={editing}
+                onOpenChange={setEditing}
+            />
+        </li>
+    );
+}
+
+function EditServingsDialog({
+    entry,
+    open,
+    onOpenChange,
+}: {
+    entry: DiaryEntry;
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+}) {
+    const current = Number(entry.servings);
+    const [servings, setServings] = useState(current);
+    const [processing, setProcessing] = useState(false);
+    const ratio = servings / current;
+
+    const save = () =>
+        router.visit(update(entry.id), {
+            data: { servings },
+            preserveScroll: true,
+            onStart: () => setProcessing(true),
+            onFinish: () => setProcessing(false),
+            onSuccess: () => onOpenChange(false),
+        });
+
+    return (
+        <Dialog
+            open={open}
+            onOpenChange={(next) => {
+                setServings(current);
+                onOpenChange(next);
+            }}
+        >
+            <DialogContent className="sm:max-w-sm">
+                <DialogHeader>
+                    <DialogTitle className="pr-6">{entry.name}</DialogTitle>
+                    <DialogDescription>
+                        How much did you have?
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="flex items-center justify-between gap-4">
+                    <ServingsStepper value={servings} onChange={setServings} />
+                    <div className="text-right tabular-nums">
+                        <span className="block text-lg font-semibold">
+                            {Math.round(entry.calories * ratio)} kcal
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                            {formatGrams(
+                                Math.round(
+                                    grams(entry.protein_g) * ratio * 10,
+                                ) / 10,
+                            )}{' '}
+                            protein
+                        </span>
+                    </div>
+                </div>
+
+                <DialogFooter className="gap-2">
+                    <DialogClose asChild>
+                        <Button type="button" variant="secondary">
+                            Cancel
+                        </Button>
+                    </DialogClose>
+                    <Button
+                        onClick={save}
+                        disabled={processing || servings === current}
+                    >
+                        Save
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
