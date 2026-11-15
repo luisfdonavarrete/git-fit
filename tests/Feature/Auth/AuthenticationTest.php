@@ -2,12 +2,22 @@
 
 use App\Models\User;
 use Illuminate\Support\Facades\RateLimiter;
+use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Features;
 
 test('login screen can be rendered', function () {
     $response = $this->get(route('login'));
 
     $response->assertOk();
+});
+
+test('the register link is only shared when registration is enabled', function () {
+    $response = $this->get(route('login'));
+
+    $response->assertInertia(fn (Assert $page) => $page->where(
+        'registerUrl',
+        Features::enabled(Features::registration()) ? route('register') : null,
+    ));
 });
 
 test('users can authenticate using the login screen', function () {

@@ -2,11 +2,11 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { ChefHat } from 'lucide-react';
 import { AppearanceToggle } from '@/components/appearance-toggle';
 import { Button } from '@/components/ui/button';
-import { login, register } from '@/routes';
+import { login } from '@/routes';
 import { index as recipesIndex } from '@/routes/admin/recipes';
 
 export default function Welcome() {
-    const { auth, name } = usePage().props;
+    const { auth, name, registerUrl } = usePage().props;
 
     return (
         <>
@@ -20,9 +20,11 @@ export default function Welcome() {
                             <Button variant="ghost" asChild>
                                 <Link href={login()}>Log in</Link>
                             </Button>
-                            <Button variant="outline" asChild>
-                                <Link href={register()}>Register</Link>
-                            </Button>
+                            {registerUrl && (
+                                <Button variant="outline" asChild>
+                                    <Link href={registerUrl}>Register</Link>
+                                </Button>
+                            )}
                         </>
                     )}
                 </header>
