@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -35,7 +36,7 @@ class Recipe extends Model
     use HasFactory;
 
     /**
-     * A browser-ready URL for the image: external URLs as-is, stored files via the public disk.
+     * A browser-ready URL for the image: external URLs as-is, stored files via the images disk.
      *
      * @return Attribute<string|null, never>
      */
@@ -43,9 +44,33 @@ class Recipe extends Model
     {
         return Attribute::get(fn (): ?string => match (true) {
             blank($this->image_path) => null,
-            Str::startsWith($this->image_path, ['http://', 'https://']) => $this->image_path,
-            default => Storage::disk('public')->url($this->image_path),
+            ! $this->hasStoredImage() => $this->image_path,
+            default => Storage::disk(config()->string('recipes.images_disk'))->url($this->image_path),
         });
+    }
+
+    /**
+     * Whether the image is a file on the images disk rather than an external URL.
+     */
+    public function hasStoredImage(): bool
+    {
+        return filled($this->image_path)
+            && ! Str::startsWith($this->image_path, ['http://', 'https://']);
+    }
+
+    /**
+     * Store an uploaded photo as the recipe's image, deleting the stored file it replaces.
+     */
+    public function replaceImage(?UploadedFile $image): void
+    {
+        $disk = config()->string('recipes.images_disk');
+
+        if ($this->hasStoredImage()) {
+            Storage::disk($disk)->delete((string) $this->image_path);
+        }
+
+        $this->image_path = $image?->storePublicly('recipes', $disk) ?: null;
+        $this->save();
     }
 
     /**

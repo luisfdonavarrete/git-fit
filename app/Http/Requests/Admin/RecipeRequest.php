@@ -5,7 +5,6 @@ namespace App\Http\Requests\Admin;
 use App\Enums\DietaryTag;
 use App\Enums\MealType;
 use App\Models\Recipe;
-use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Str;
@@ -45,19 +44,8 @@ class RecipeRequest extends FormRequest
                 Rule::unique('recipes', 'slug')->ignore($recipe instanceof Recipe ? $recipe->id : null),
             ],
             'description' => ['nullable', 'string', 'max:5000'],
-            'image_path' => [
-                'nullable',
-                'string',
-                'max:2048',
-                function (string $attribute, mixed $value, Closure $fail): void {
-                    $isUrl = filter_var($value, FILTER_VALIDATE_URL) !== false;
-                    $isStoredImage = is_string($value) && preg_match('#^[\w\-]+(/[\w\-]+)*\.(jpe?g|png|webp|gif)$#i', $value) === 1;
-
-                    if (! $isUrl && ! $isStoredImage) {
-                        $fail('The image must be a URL or a stored image path.');
-                    }
-                },
-            ],
+            'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'remove_image' => ['nullable', 'boolean'],
             'meal_types' => ['nullable', 'array'],
             'meal_types.*' => ['distinct', Rule::enum(MealType::class)],
             'dietary_tags' => ['nullable', 'array'],

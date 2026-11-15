@@ -11,6 +11,7 @@ use App\Models\Recipe;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -73,9 +74,10 @@ class RecipeController extends Controller
     public function store(RecipeRequest $request): RedirectResponse
     {
         $recipe = DB::transaction(function () use ($request): Recipe {
-            $recipe = Recipe::create(Arr::except($request->validated(), ['meal_types', 'dietary_tags']));
+            $recipe = Recipe::create(Arr::only($request->validated(), ['name', 'slug', 'description']));
             $recipe->syncMealTypes($request->mealTypes());
             $recipe->syncDietaryTags($request->dietaryTags());
+            self::syncImage($request, $recipe);
 
             return $recipe;
         });
@@ -117,9 +119,10 @@ class RecipeController extends Controller
     public function update(RecipeRequest $request, Recipe $recipe): RedirectResponse
     {
         DB::transaction(function () use ($request, $recipe): void {
-            $recipe->update(Arr::except($request->validated(), ['meal_types', 'dietary_tags']));
+            $recipe->update(Arr::only($request->validated(), ['name', 'slug', 'description']));
             $recipe->syncMealTypes($request->mealTypes());
             $recipe->syncDietaryTags($request->dietaryTags());
+            self::syncImage($request, $recipe);
         });
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Recipe updated.')]);
@@ -137,6 +140,20 @@ class RecipeController extends Controller
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Recipe deleted.')]);
 
         return to_route('admin.recipes.index');
+    }
+
+    /**
+     * Apply an uploaded photo, or remove the current one when asked to.
+     */
+    private static function syncImage(RecipeRequest $request, Recipe $recipe): void
+    {
+        $image = $request->file('image');
+
+        if ($image instanceof UploadedFile) {
+            $recipe->replaceImage($image);
+        } elseif ($request->boolean('remove_image')) {
+            $recipe->replaceImage(null);
+        }
     }
 
     /**

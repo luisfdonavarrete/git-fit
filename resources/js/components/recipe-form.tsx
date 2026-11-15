@@ -1,7 +1,7 @@
 import { Form, Link } from '@inertiajs/react';
 import { ImageIcon } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -38,15 +38,30 @@ export default function RecipeForm({
 }) {
     const [name, setName] = useState(recipe?.name ?? '');
     const [slug, setSlug] = useState(recipe?.slug ?? '');
-    const [imageUrl, setImageUrl] = useState(recipe?.image_path ?? '');
+    const [uploadPreview, setUploadPreview] = useState<string | null>(null);
+    const [removeImage, setRemoveImage] = useState(false);
     const [imageFailed, setImageFailed] = useState(false);
+    const imageInput = useRef<HTMLInputElement>(null);
 
-    // Stored photos are paths on the public disk; preview them via the server-built URL.
-    const previewUrl = /^https?:\/\//.test(imageUrl)
-        ? imageUrl
-        : imageUrl !== '' && imageUrl === recipe?.image_path
-          ? recipe.image_url
-          : null;
+    useEffect(() => {
+        return () => {
+            if (uploadPreview) {
+                URL.revokeObjectURL(uploadPreview);
+            }
+        };
+    }, [uploadPreview]);
+
+    const currentImageUrl = removeImage ? null : (recipe?.image_url ?? null);
+    const previewUrl = uploadPreview ?? currentImageUrl;
+
+    const clearUpload = () => {
+        setUploadPreview(null);
+        setImageFailed(false);
+
+        if (imageInput.current) {
+            imageInput.current.value = '';
+        }
+    };
 
     const slugPreview = slug ? slugify(slug) : slugify(name);
 
@@ -144,22 +159,72 @@ export default function RecipeForm({
                         </div>
 
                         <div className="grid gap-2">
-                            <Label htmlFor="image_path">Image</Label>
+                            <Label htmlFor="image">Image</Label>
                             <Input
-                                id="image_path"
-                                name="image_path"
-                                value={imageUrl}
+                                ref={imageInput}
+                                id="image"
+                                name="image"
+                                type="file"
+                                accept="image/jpeg,image/png,image/webp"
                                 onChange={(e) => {
-                                    setImageUrl(e.target.value);
+                                    const file = e.target.files?.[0];
+                                    setUploadPreview(
+                                        file ? URL.createObjectURL(file) : null,
+                                    );
                                     setImageFailed(false);
+
+                                    if (file) {
+                                        setRemoveImage(false);
+                                    }
                                 }}
-                                placeholder="https://…"
                             />
-                            <p className="text-xs text-muted-foreground">
-                                An image URL, or a path to a stored photo (e.g.
-                                recipes/my-recipe.jpg).
-                            </p>
-                            <InputError message={errors.image_path} />
+                            {removeImage && (
+                                <input
+                                    type="hidden"
+                                    name="remove_image"
+                                    value="1"
+                                />
+                            )}
+                            <div className="flex items-center gap-3">
+                                <p className="text-xs text-muted-foreground">
+                                    JPG, PNG or WebP, up to 5 MB.
+                                </p>
+                                {uploadPreview ? (
+                                    <Button
+                                        type="button"
+                                        variant="link"
+                                        size="sm"
+                                        className="h-auto p-0 text-xs"
+                                        onClick={clearUpload}
+                                    >
+                                        Clear selection
+                                    </Button>
+                                ) : recipe?.image_url && !removeImage ? (
+                                    <Button
+                                        type="button"
+                                        variant="link"
+                                        size="sm"
+                                        className="h-auto p-0 text-xs text-destructive"
+                                        onClick={() => {
+                                            setRemoveImage(true);
+                                            setImageFailed(false);
+                                        }}
+                                    >
+                                        Remove image
+                                    </Button>
+                                ) : removeImage ? (
+                                    <Button
+                                        type="button"
+                                        variant="link"
+                                        size="sm"
+                                        className="h-auto p-0 text-xs"
+                                        onClick={() => setRemoveImage(false)}
+                                    >
+                                        Keep current image
+                                    </Button>
+                                ) : null}
+                            </div>
+                            <InputError message={errors.image} />
                         </div>
 
                         <div className="flex items-center gap-3 pt-2">

@@ -6,6 +6,8 @@ use App\Enums\MealType;
 use App\Models\Recipe;
 use App\Models\RecipeVersion;
 use App\Models\User;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('guests are redirected to the login page', function () {
@@ -271,4 +273,82 @@ test('an unknown dietary tag is rejected', function () {
 
     $response->assertSessionHasErrors(['dietary_tags.0' => 'The selected dietary tag is invalid.']);
     expect(Recipe::count())->toBe(0);
+});
+
+test('a recipe can be created with an uploaded image', function () {
+    Storage::fake(config('recipes.images_disk'));
+
+    $response = $this->actingAs(User::factory()->create())->post(route('admin.recipes.store'), [
+        'name' => 'Chicken Bowl',
+        'image' => UploadedFile::fake()->image('bowl.jpg'),
+    ]);
+
+    $response->assertSessionHasNoErrors();
+    $recipe = Recipe::sole();
+    expect($recipe->image_path)->toStartWith('recipes/');
+    Storage::disk(config('recipes.images_disk'))->assertExists($recipe->image_path);
+});
+
+test('uploading a new image replaces the stored one', function () {
+    $disk = Storage::fake(config('recipes.images_disk'));
+    $disk->put('recipes/old.jpg', 'old-bytes');
+    $recipe = Recipe::factory()->create(['image_path' => 'recipes/old.jpg']);
+
+    $response = $this->actingAs(User::factory()->create())->put(route('admin.recipes.update', $recipe), [
+        'name' => $recipe->name,
+        'image' => UploadedFile::fake()->image('new.png'),
+    ]);
+
+    $response->assertSessionHasNoErrors();
+    $disk->assertMissing('recipes/old.jpg');
+    $disk->assertExists($recipe->refresh()->image_path);
+    expect($recipe->image_path)->not->toBe('recipes/old.jpg');
+});
+
+test('updating a recipe without an upload keeps its image', function () {
+    $recipe = Recipe::factory()->create(['image_path' => 'https://example.com/bowl.jpg']);
+
+    $this->actingAs(User::factory()->create())->put(route('admin.recipes.update', $recipe), [
+        'name' => 'Renamed Bowl',
+    ])->assertSessionHasNoErrors();
+
+    expect($recipe->refresh()->image_path)->toBe('https://example.com/bowl.jpg');
+});
+
+test('a recipe image can be removed', function () {
+    $disk = Storage::fake(config('recipes.images_disk'));
+    $disk->put('recipes/old.jpg', 'old-bytes');
+    $recipe = Recipe::factory()->create(['image_path' => 'recipes/old.jpg']);
+
+    $response = $this->actingAs(User::factory()->create())->put(route('admin.recipes.update', $recipe), [
+        'name' => $recipe->name,
+        'remove_image' => '1',
+    ]);
+
+    $response->assertSessionHasNoErrors();
+    $disk->assertMissing('recipes/old.jpg');
+    expect($recipe->refresh()->image_path)->toBeNull();
+});
+
+test('a recipe image must be an image file', function () {
+    Storage::fake(config('recipes.images_disk'));
+
+    $response = $this->actingAs(User::factory()->create())->post(route('admin.recipes.store'), [
+        'name' => 'Chicken Bowl',
+        'image' => UploadedFile::fake()->create('notes.pdf', 10, 'application/pdf'),
+    ]);
+
+    $response->assertSessionHasErrors('image');
+    expect(Recipe::count())->toBe(0);
+});
+
+test('the image path cannot be set directly', function () {
+    $recipe = Recipe::factory()->create(['image_path' => null]);
+
+    $this->actingAs(User::factory()->create())->put(route('admin.recipes.update', $recipe), [
+        'name' => $recipe->name,
+        'image_path' => 'https://example.com/elsewhere.jpg',
+    ])->assertSessionHasNoErrors();
+
+    expect($recipe->refresh()->image_path)->toBeNull();
 });
