@@ -1,5 +1,5 @@
 import { Link } from '@inertiajs/react';
-import { ChefHat, LayoutGrid } from 'lucide-react';
+import { ChefHat, LayoutGrid, LineChart, Sparkles } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -12,7 +12,8 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes';
+import { dashboard, progress } from '@/routes';
+import { edit as coachEdit } from '@/routes/coach';
 import { index as recipesIndex } from '@/routes/admin/recipes';
 import type { NavItem } from '@/types';
 
@@ -21,6 +22,16 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    {
+        title: 'Progress',
+        href: progress(),
+        icon: LineChart,
+    },
+    {
+        title: 'Coach',
+        href: coachEdit(),
+        icon: Sparkles,
     },
     {
         title: 'Recipes',

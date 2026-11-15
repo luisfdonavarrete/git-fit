@@ -1,6 +1,9 @@
 <?php
 
 use App\Enums\MealType;
+use App\Enums\WeightUnit;
+use App\Models\CoachProfile;
+use App\Models\DailyCheckIn;
 use App\Models\MealEntry;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -50,4 +53,32 @@ test('the dashboard falls back to today for a malformed date', function () {
     $response = $this->actingAs(User::factory()->create())->get(route('dashboard', ['date' => '2026-02-31']));
 
     $response->assertInertia(fn (Assert $page) => $page->where('date', '2026-11-14'));
+});
+
+test('the dashboard shows the coach targets, calorie range and the day\'s weigh-in', function () {
+    $this->travelTo('2026-11-14 09:00');
+    $user = User::factory()->create();
+    CoachProfile::factory()->for($user)->create([
+        'started_on' => '2026-11-09',
+        'starting_weight_kg' => WeightUnit::Lb->toKg(170.8),
+        'body_fat_pct' => 24,
+    ]);
+    DailyCheckIn::factory()->for($user)->create(['checked_on' => '2026-11-14', 'weight_kg' => WeightUnit::Lb->toKg(168)]);
+
+    $response = $this->actingAs($user)->get(route('dashboard'));
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('coach.phase.value', 'cut')
+        ->where('coach.adapts_from', '2026-11-30')
+        ->where('coach.day_calorie_range', [1750, 1950])
+        ->where('summary.targets.calories', 1865)
+        ->where('checkIn.weight', 168)
+        ->where('checkIn.unit', 'lbs')
+    );
+});
+
+test('the dashboard has no coach data until the coach is set up', function () {
+    $response = $this->actingAs(User::factory()->create())->get(route('dashboard'));
+
+    $response->assertInertia(fn (Assert $page) => $page->where('coach', null)->where('checkIn.weight', null));
 });

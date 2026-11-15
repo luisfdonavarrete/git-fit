@@ -3,3 +3,4 @@ export type * from './navigation';
 export type * from './ui';
 export type * from './recipes';
 export type * from './nutrition';
+export type * from './coach';

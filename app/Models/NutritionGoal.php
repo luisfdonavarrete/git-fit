@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\GoalSource;
 use Database\Factories\NutritionGoalFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -16,6 +17,8 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property int $user_id
  * @property Carbon $effective_from
+ * @property GoalSource $source
+ * @property int|null $maintenance_calories
  * @property int $calories
  * @property string $protein_g
  * @property string|null $carbs_g
@@ -28,6 +31,8 @@ use Illuminate\Support\Carbon;
  */
 #[Fillable([
     'effective_from',
+    'source',
+    'maintenance_calories',
     'calories',
     'protein_g',
     'carbs_g',
@@ -58,6 +63,8 @@ class NutritionGoal extends Model
     {
         return [
             'effective_from' => 'date',
+            'source' => GoalSource::class,
+            'maintenance_calories' => 'integer',
             'calories' => 'integer',
             'protein_g' => 'decimal:1',
             'carbs_g' => 'decimal:1',

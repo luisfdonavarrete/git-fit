@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\GoalSource;
 use App\Models\NutritionGoal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -21,6 +22,8 @@ class NutritionGoalFactory extends Factory
         return [
             'user_id' => User::factory(),
             'effective_from' => today(),
+            'source' => GoalSource::Manual,
+            'maintenance_calories' => null,
             'calories' => fake()->numberBetween(18, 26) * 100,
             'protein_g' => fake()->numberBetween(120, 180),
             'carbs_g' => null,

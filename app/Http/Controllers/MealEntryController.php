@@ -2,17 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Actions\Coach\SyncCoachGoal;
 use App\Enums\MealType;
 use App\Http\Requests\StoreMealEntryRequest;
 use App\Http\Requests\UpdateMealEntryRequest;
 use App\Models\MealEntry;
 use App\Models\RecipeVersion;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
 class MealEntryController extends Controller
 {
+    public function __construct(private SyncCoachGoal $syncCoachGoal) {}
+
     /**
      * Log a recipe version to a section of the user's diary.
      */
@@ -24,6 +28,7 @@ class MealEntryController extends Controller
             ->make($request->safe()->only(['eaten_on', 'meal_type']))
             ->fillFromRecipeVersion($version, $request->float('servings'));
         $entry->save();
+        $this->syncCoachGoal->handle($request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __(':name added to :meal.', [
             'name' => $entry->name,
@@ -43,6 +48,7 @@ class MealEntryController extends Controller
         $mealEntry->meal_type = $request->enum('meal_type', MealType::class) ?? $mealEntry->meal_type;
         $mealEntry->rescaleTo($request->float('servings'));
         $mealEntry->save();
+        $this->syncCoachGoal->handle($request->user());
 
         return back();
     }
@@ -50,11 +56,12 @@ class MealEntryController extends Controller
     /**
      * Remove an entry from the diary.
      */
-    public function destroy(MealEntry $mealEntry): RedirectResponse
+    public function destroy(Request $request, MealEntry $mealEntry): RedirectResponse
     {
         Gate::authorize('delete', $mealEntry);
 
         $mealEntry->delete();
+        $this->syncCoachGoal->handle($request->user());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __(':name removed.', ['name' => $mealEntry->name])]);
 

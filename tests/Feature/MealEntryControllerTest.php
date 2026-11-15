@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\GoalSource;
 use App\Enums\MealType;
+use App\Models\CoachProfile;
 use App\Models\MealEntry;
 use App\Models\RecipeVersion;
 use App\Models\User;
@@ -86,4 +88,20 @@ it('forbids changing another user\'s entry', function (string $method, string $r
 
 it('redirects guests to login', function () {
     $this->post(route('meal-entries.store'))->assertRedirect(route('login'));
+});
+
+it('recalculates the coach goal when the diary changes', function () {
+    $this->travelTo('2026-11-14 09:00');
+    $user = User::factory()->create();
+    CoachProfile::factory()->for($user)->create(['started_on' => '2026-11-09']);
+    $version = RecipeVersion::factory()->create();
+
+    $this->actingAs($user)->post(route('meal-entries.store'), [
+        'recipe_version_id' => $version->id,
+        'meal_type' => 'lunch',
+        'servings' => 1,
+        'eaten_on' => '2026-11-14',
+    ]);
+
+    expect($user->goalOn(today())?->source)->toBe(GoalSource::Coach);
 });
