@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\CalorieRange;
+use App\Enums\DietaryTag;
 use App\Enums\MealType;
 use App\Models\Recipe;
 use Database\Seeders\RecipeSeeder;
@@ -15,6 +16,7 @@ function importedRecipe(array $overrides = []): array
         'name' => 'Tuna & Cucumber Sandwich',
         'slug' => 'tuna-cucumber-sandwich',
         'meal_types' => ['lunch'],
+        'dietary_tags' => ['dairy_free'],
         'image' => 'images/tuna-cucumber-sandwich.jpg',
         'versions' => [
             [
@@ -59,6 +61,7 @@ it('imports recipes with their versions, ingredients, steps, and photo', functio
     expect($recipe->name)->toBe('Tuna & Cucumber Sandwich')
         ->and($recipe->image_path)->toBe('recipes/tuna-cucumber-sandwich.jpg')
         ->and($recipe->mealTypes->pluck('meal_type')->all())->toBe([MealType::Lunch])
+        ->and($recipe->dietaryTags->pluck('dietary_tag')->all())->toBe([DietaryTag::DairyFree])
         ->and($version->calorie_range)->toBe(CalorieRange::From200)
         ->and($version->calories)->toBe(218)
         ->and($version->prep_minutes)->toBe(10)
@@ -106,4 +109,15 @@ it('skips the import when the data file is missing', function () {
     $this->seed(RecipeSeeder::class);
 
     expect(Recipe::count())->toBe(0);
+});
+
+it('keeps existing dietary tags when the data has none', function () {
+    $recipe = Recipe::factory()->withDietaryTags(DietaryTag::GlutenFree)->create(['slug' => 'tuna-cucumber-sandwich']);
+    $data = importedRecipe();
+    unset($data['dietary_tags']);
+    putImport([$data]);
+
+    $this->seed(RecipeSeeder::class);
+
+    expect($recipe->dietaryTags()->pluck('dietary_tag')->all())->toBe([DietaryTag::GlutenFree]);
 });

@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Actions\Recipes\SaveRecipeVersion;
 use App\Enums\CalorieRange;
+use App\Enums\DietaryTag;
 use App\Enums\MealType;
 use App\Models\Recipe;
 use Illuminate\Database\Seeder;
@@ -16,7 +17,8 @@ use Illuminate\Support\Facades\Storage;
  *
  * Safe to run repeatedly: recipes are matched by slug and versions by calorie
  * range, so re-running updates existing rows instead of duplicating them.
- * Recipe descriptions edited in the admin are left alone.
+ * Recipe descriptions edited in the admin are left alone, as are dietary tags
+ * for recipes whose data has no `dietary_tags` key.
  */
 class RecipeSeeder extends Seeder
 {
@@ -60,6 +62,13 @@ class RecipeSeeder extends Seeder
             fn (mixed $value): MealType => MealType::from((string) $value),
             Arr::array($data, 'meal_types'),
         ));
+
+        if (Arr::has($data, 'dietary_tags')) {
+            $recipe->syncDietaryTags(array_map(
+                fn (mixed $value): DietaryTag => DietaryTag::from((string) $value),
+                Arr::array($data, 'dietary_tags'),
+            ));
+        }
 
         foreach (Arr::array($data, 'versions') as $version) {
             $attributes = Arr::wrap($version);
