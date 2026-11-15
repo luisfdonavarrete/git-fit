@@ -1,11 +1,12 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "laravel/react-starter-kit",
+    "name": "luisfdonavarrete/git-fit",
     "type": "project",
-    "description": "The skeleton application for the Laravel framework.",
+    "description": "Calorie-specific recipes, a food diary and a nutrition coach.",
     "keywords": [
         "laravel",
-        "framework"
+        "nutrition",
+        "recipes"
     ],
     "license": "MIT",
     "require": {
