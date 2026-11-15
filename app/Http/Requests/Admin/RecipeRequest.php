@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Enums\DietaryTag;
 use App\Enums\MealType;
 use App\Models\Recipe;
 use Closure;
@@ -59,6 +60,8 @@ class RecipeRequest extends FormRequest
             ],
             'meal_types' => ['nullable', 'array'],
             'meal_types.*' => ['distinct', Rule::enum(MealType::class)],
+            'dietary_tags' => ['nullable', 'array'],
+            'dietary_tags.*' => ['distinct', Rule::enum(DietaryTag::class)],
         ];
     }
 
@@ -71,6 +74,7 @@ class RecipeRequest extends FormRequest
     {
         return [
             'meal_types.*' => 'meal type',
+            'dietary_tags.*' => 'dietary tag',
         ];
     }
 
@@ -82,5 +86,15 @@ class RecipeRequest extends FormRequest
     public function mealTypes(): array
     {
         return array_values($this->enums('meal_types', MealType::class));
+    }
+
+    /**
+     * The selected dietary tags.
+     *
+     * @return list<DietaryTag>
+     */
+    public function dietaryTags(): array
+    {
+        return array_values($this->enums('dietary_tags', DietaryTag::class));
     }
 }

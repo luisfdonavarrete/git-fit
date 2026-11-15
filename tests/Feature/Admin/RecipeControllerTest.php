@@ -1,5 +1,7 @@
 <?php
 
+use App\Enums\CalorieRange;
+use App\Enums\DietaryTag;
 use App\Enums\MealType;
 use App\Models\Recipe;
 use App\Models\RecipeVersion;
@@ -168,5 +170,105 @@ test('an unknown meal type is rejected', function () {
     ]);
 
     $response->assertSessionHasErrors(['meal_types.0' => 'The selected meal type is invalid.']);
+    expect(Recipe::count())->toBe(0);
+});
+
+test('recipes can be filtered by calorie range', function () {
+    $light = Recipe::factory()->create(['name' => 'Berry Oats']);
+    RecipeVersion::factory()->for($light)->forCalorieRange(CalorieRange::From300)->create();
+    $hearty = Recipe::factory()->create(['name' => 'Salmon Tray Bake']);
+    RecipeVersion::factory()->for($hearty)->forCalorieRange(CalorieRange::From600)->create();
+
+    $response = $this->actingAs(User::factory()->create())
+        ->get(route('admin.recipes.index', ['calorie_range' => 300]));
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->has('recipes.data', 1)
+        ->where('recipes.data.0.name', 'Berry Oats')
+        ->where('filters.calorie_range', 300)
+    );
+});
+
+test('recipes can be filtered by every selected diet', function () {
+    Recipe::factory()->withDietaryTags(DietaryTag::Vegan, DietaryTag::GlutenFree)->create(['name' => 'Lentil Curry']);
+    Recipe::factory()->withDietaryTags(DietaryTag::Vegan)->create(['name' => 'Tofu Toast']);
+    Recipe::factory()->withDietaryTags(DietaryTag::GlutenFree)->create(['name' => 'Steak Salad']);
+
+    $response = $this->actingAs(User::factory()->create())
+        ->get(route('admin.recipes.index', ['diets' => ['vegan', 'gluten_free']]));
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->has('recipes.data', 1)
+        ->where('recipes.data.0.name', 'Lentil Curry')
+        ->has('recipes.data.0.dietary_tags', 2)
+        ->where('filters.diets', ['vegan', 'gluten_free'])
+    );
+});
+
+test('vegan recipes match the vegetarian and dairy-free filters', function (string $diet) {
+    Recipe::factory()->withDietaryTags(DietaryTag::Vegan)->create(['name' => 'Tofu Toast']);
+    Recipe::factory()->create(['name' => 'Steak Salad']);
+
+    $response = $this->actingAs(User::factory()->create())
+        ->get(route('admin.recipes.index', ['diets' => [$diet]]));
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->has('recipes.data', 1)
+        ->where('recipes.data.0.name', 'Tofu Toast')
+    );
+})->with(['vegetarian', 'dairy_free']);
+
+test('vegetarian recipes do not match the vegan filter', function () {
+    Recipe::factory()->withDietaryTags(DietaryTag::Vegetarian)->create();
+
+    $response = $this->actingAs(User::factory()->create())
+        ->get(route('admin.recipes.index', ['diets' => ['vegan']]));
+
+    $response->assertInertia(fn (Assert $page) => $page->has('recipes.data', 0));
+});
+
+test('unknown filter values are ignored', function () {
+    Recipe::factory()->create();
+
+    $response = $this->actingAs(User::factory()->create())
+        ->get(route('admin.recipes.index', ['calorie_range' => 250, 'diets' => ['keto']]));
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->has('recipes.data', 1)
+        ->where('filters.calorie_range', null)
+        ->where('filters.diets', [])
+    );
+});
+
+test('a recipe can be created with dietary tags', function () {
+    $response = $this->actingAs(User::factory()->create())->post(route('admin.recipes.store'), [
+        'name' => 'Lentil Curry',
+        'dietary_tags' => ['vegan', 'gluten_free'],
+    ]);
+
+    $response->assertSessionHasNoErrors();
+    expect(Recipe::sole()->dietaryTags->pluck('dietary_tag')->all())
+        ->toEqualCanonicalizing([DietaryTag::Vegan, DietaryTag::GlutenFree]);
+});
+
+test('updating a recipe replaces its dietary tags', function () {
+    $recipe = Recipe::factory()->withDietaryTags(DietaryTag::Vegan, DietaryTag::GlutenFree)->create();
+
+    $response = $this->actingAs(User::factory()->create())->put(route('admin.recipes.update', $recipe), [
+        'name' => $recipe->name,
+        'dietary_tags' => ['vegetarian'],
+    ]);
+
+    $response->assertSessionHasNoErrors();
+    expect($recipe->dietaryTags()->pluck('dietary_tag')->all())->toBe([DietaryTag::Vegetarian]);
+});
+
+test('an unknown dietary tag is rejected', function () {
+    $response = $this->actingAs(User::factory()->create())->post(route('admin.recipes.store'), [
+        'name' => 'Mystery Dish',
+        'dietary_tags' => ['keto'],
+    ]);
+
+    $response->assertSessionHasErrors(['dietary_tags.0' => 'The selected dietary tag is invalid.']);
     expect(Recipe::count())->toBe(0);
 });

@@ -20,6 +20,7 @@ import RecipeVersionController from '@/actions/App/Http/Controllers/Admin/Recipe
 import CalorieRangeBadge from '@/components/calorie-range-badge';
 import ConfirmDeleteDialog from '@/components/confirm-delete-dialog';
 import MacroBar from '@/components/macro-bar';
+import DietaryTagBadge from '@/components/dietary-tag-badge';
 import MealTypeBadge from '@/components/meal-type-badge';
 import { Button } from '@/components/ui/button';
 import { rangeLabel, rangeTone } from '@/lib/calorie-range';
@@ -89,12 +90,20 @@ export default function ShowRecipe({ recipe, calorieRanges }: Props) {
                                 {recipe.description}
                             </p>
                         )}
-                        {recipe.meal_types && recipe.meal_types.length > 0 && (
+                        {(recipe.meal_types?.length ?? 0) +
+                            (recipe.dietary_tags?.length ?? 0) >
+                            0 && (
                             <div className="flex flex-wrap gap-1.5 pt-1">
-                                {recipe.meal_types.map((m) => (
+                                {recipe.meal_types?.map((m) => (
                                     <MealTypeBadge
                                         key={m.id}
                                         value={m.meal_type}
+                                    />
+                                ))}
+                                {recipe.dietary_tags?.map((t) => (
+                                    <DietaryTagBadge
+                                        key={t.id}
+                                        value={t.dietary_tag}
                                     />
                                 ))}
                             </div>

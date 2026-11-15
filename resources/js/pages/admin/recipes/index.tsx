@@ -2,44 +2,70 @@ import { Head, Link, router } from '@inertiajs/react';
 import {
     ChevronLeft,
     ChevronRight,
+    Flame,
     Plus,
     Search,
     UtensilsCrossed,
+    X,
 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     create,
     index,
     show,
 } from '@/actions/App/Http/Controllers/Admin/RecipeController';
 import CalorieRangeBadge from '@/components/calorie-range-badge';
+import DietaryTagBadge from '@/components/dietary-tag-badge';
 import MealTypeBadge from '@/components/meal-type-badge';
 import VersionCoverage from '@/components/version-coverage';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { dietaryTagIcons } from '@/lib/dietary-tag';
 import { mealTypeIcons } from '@/lib/meal-type';
 import { cn } from '@/lib/utils';
 import type {
     CalorieRangeOption,
+    CalorieRangeValue,
+    DietaryTagOption,
+    DietaryTagValue,
     MealTypeOption,
     MealTypeValue,
     Paginated,
     Recipe,
 } from '@/types';
 
-type Props = {
-    recipes: Paginated<Recipe>;
-    filters: { search: string; meal_type: MealTypeValue | null };
-    calorieRanges: CalorieRangeOption[];
-    mealTypes: MealTypeOption[];
+type Filters = {
+    search: string;
+    meal_type: MealTypeValue | null;
+    calorie_range: CalorieRangeValue | null;
+    diets: DietaryTagValue[];
 };
 
-function applyFilters(search: string, mealType: MealTypeValue | null) {
+type Props = {
+    recipes: Paginated<Recipe>;
+    filters: Filters;
+    calorieRanges: CalorieRangeOption[];
+    mealTypes: MealTypeOption[];
+    dietaryTags: DietaryTagOption[];
+};
+
+const ANY_CALORIES = 'any';
+
+function applyFilters({ search, meal_type, calorie_range, diets }: Filters) {
     router.get(
         index.url(),
         {
             ...(search ? { search } : {}),
-            ...(mealType ? { meal_type: mealType } : {}),
+            ...(meal_type ? { meal_type } : {}),
+            ...(calorie_range !== null ? { calorie_range } : {}),
+            ...(diets.length > 0 ? { diets } : {}),
         },
         {
             preserveState: true,
@@ -54,8 +80,38 @@ export default function RecipesIndex({
     filters,
     calorieRanges,
     mealTypes,
+    dietaryTags,
 }: Props) {
     const [search, setSearch] = useState(filters.search);
+    // The filters most recently applied, read by the debounced search so it
+    // never re-sends a stale combination once another filter has changed.
+    const appliedFilters = useRef(filters);
+
+    useEffect(() => {
+        appliedFilters.current = filters;
+    }, [filters]);
+
+    const update = (changes: Partial<Filters>) => {
+        appliedFilters.current = {
+            ...appliedFilters.current,
+            search,
+            ...changes,
+        };
+        applyFilters(appliedFilters.current);
+    };
+
+    const toggleDiet = (diet: DietaryTagValue) =>
+        update({
+            diets: filters.diets.includes(diet)
+                ? filters.diets.filter((d) => d !== diet)
+                : [...filters.diets, diet],
+        });
+
+    const filtering =
+        filters.search !== '' ||
+        filters.meal_type !== null ||
+        filters.calorie_range !== null ||
+        filters.diets.length > 0;
 
     useEffect(() => {
         // Only search when the box differs from what the server applied, so
@@ -64,10 +120,11 @@ export default function RecipesIndex({
             return;
         }
 
-        const timeout = setTimeout(
-            () => applyFilters(search, filters.meal_type),
-            300,
-        );
+        const timeout = setTimeout(() => {
+            if (search !== appliedFilters.current.search) {
+                update({ search });
+            }
+        }, 300);
 
         return () => clearTimeout(timeout);
     }, [search]);
@@ -116,7 +173,7 @@ export default function RecipesIndex({
                 >
                     <FilterChip
                         active={filters.meal_type === null}
-                        onClick={() => applyFilters(search, null)}
+                        onClick={() => update({ meal_type: null })}
                     >
                         All meals
                     </FilterChip>
@@ -128,12 +185,12 @@ export default function RecipesIndex({
                                 key={type.value}
                                 active={filters.meal_type === type.value}
                                 onClick={() =>
-                                    applyFilters(
-                                        search,
-                                        filters.meal_type === type.value
-                                            ? null
-                                            : type.value,
-                                    )
+                                    update({
+                                        meal_type:
+                                            filters.meal_type === type.value
+                                                ? null
+                                                : type.value,
+                                    })
                                 }
                             >
                                 <Icon className="size-3.5" />
@@ -143,12 +200,98 @@ export default function RecipesIndex({
                     })}
                 </div>
 
-                {recipes.data.length === 0 ? (
-                    <EmptyState
-                        searching={
-                            filters.search !== '' || filters.meal_type !== null
+                <div className="-mt-3 flex flex-wrap items-center gap-2">
+                    <Select
+                        value={
+                            filters.calorie_range === null
+                                ? ANY_CALORIES
+                                : String(filters.calorie_range)
                         }
+                        onValueChange={(value) =>
+                            update({
+                                calorie_range:
+                                    value === ANY_CALORIES
+                                        ? null
+                                        : (Number(value) as CalorieRangeValue),
+                            })
+                        }
+                    >
+                        <SelectTrigger
+                            size="sm"
+                            aria-label="Filter by calorie range"
+                            className={cn(
+                                'rounded-full',
+                                filters.calorie_range !== null &&
+                                    'border-primary text-foreground',
+                            )}
+                        >
+                            <Flame className="size-3.5" />
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent align="start">
+                            <SelectItem value={ANY_CALORIES}>
+                                Any calories
+                            </SelectItem>
+                            {calorieRanges.map((range) => (
+                                <SelectItem
+                                    key={range.value}
+                                    value={String(range.value)}
+                                >
+                                    {range.label} kcal
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <span
+                        aria-hidden
+                        className="mx-1 hidden h-5 w-px bg-border sm:block"
                     />
+
+                    <div
+                        role="group"
+                        aria-label="Filter by diet"
+                        className="flex flex-wrap gap-2"
+                    >
+                        {dietaryTags.map((tag) => {
+                            const Icon = dietaryTagIcons[tag.value];
+
+                            return (
+                                <FilterChip
+                                    key={tag.value}
+                                    active={filters.diets.includes(tag.value)}
+                                    onClick={() => toggleDiet(tag.value)}
+                                >
+                                    <Icon className="size-3.5" />
+                                    {tag.label}
+                                </FilterChip>
+                            );
+                        })}
+                    </div>
+
+                    {filtering && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="ml-auto text-muted-foreground"
+                            onClick={() => {
+                                setSearch('');
+                                update({
+                                    search: '',
+                                    meal_type: null,
+                                    calorie_range: null,
+                                    diets: [],
+                                });
+                            }}
+                        >
+                            <X />
+                            Clear filters
+                        </Button>
+                    )}
+                </div>
+
+                {recipes.data.length === 0 ? (
+                    <EmptyState searching={filtering} />
                 ) : (
                     <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                         {recipes.data.map((recipe) => (
@@ -223,10 +366,18 @@ function RecipeCard({
             <div className="flex flex-1 flex-col gap-3 p-4">
                 <div className="space-y-1">
                     <h2 className="line-clamp-1 font-medium">{recipe.name}</h2>
-                    {recipe.meal_types && recipe.meal_types.length > 0 && (
+                    {(recipe.meal_types?.length ?? 0) +
+                        (recipe.dietary_tags?.length ?? 0) >
+                        0 && (
                         <div className="flex flex-wrap gap-1">
-                            {recipe.meal_types.map((m) => (
+                            {recipe.meal_types?.map((m) => (
                                 <MealTypeBadge key={m.id} value={m.meal_type} />
+                            ))}
+                            {recipe.dietary_tags?.map((t) => (
+                                <DietaryTagBadge
+                                    key={t.id}
+                                    value={t.dietary_tag}
+                                />
                             ))}
                         </div>
                     )}
@@ -293,7 +444,7 @@ function EmptyState({ searching }: { searching: boolean }) {
             </h2>
             <p className="mt-1 max-w-sm text-sm text-muted-foreground">
                 {searching
-                    ? 'Try a different name or meal type.'
+                    ? 'Try a different name, meal type, calorie range or diet.'
                     : 'Create your first recipe, then add a version for each calorie range it supports.'}
             </p>
             {!searching && (

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\CalorieRange;
+use App\Enums\DietaryTag;
 use App\Enums\MealType;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RecipeRequest;
@@ -18,26 +19,40 @@ use Inertia\Response;
 class RecipeController extends Controller
 {
     /**
-     * List recipes, optionally filtered by name.
+     * List recipes, optionally filtered by name, meal type, calorie range and diet.
      */
     public function index(Request $request): Response
     {
         $search = $request->string('search')->trim()->value();
         $mealType = $request->enum('meal_type', MealType::class);
+        $calorieRange = $request->enum('calorie_range', CalorieRange::class);
+        $diets = array_values(array_unique($request->enums('diets', DietaryTag::class), SORT_REGULAR));
 
         $recipes = Recipe::query()
             ->when($search !== '', fn (Builder $query) => $query->whereLike('name', "%{$search}%"))
             ->when($mealType, fn (Builder $query, MealType $type) => $query->forMealType($type))
-            ->with(['versions:id,recipe_id,calorie_range,calories', 'mealTypes:id,recipe_id,meal_type'])
+            ->when($calorieRange, fn (Builder $query, CalorieRange $range) => $query->withVersionInRange($range))
+            ->when($diets !== [], fn (Builder $query) => $query->meetsDiets($diets))
+            ->with([
+                'versions:id,recipe_id,calorie_range,calories',
+                'mealTypes:id,recipe_id,meal_type',
+                'dietaryTags:id,recipe_id,dietary_tag',
+            ])
             ->latest()
             ->paginate(12)
             ->withQueryString();
 
         return Inertia::render('admin/recipes/index', [
             'recipes' => $recipes,
-            'filters' => ['search' => $search, 'meal_type' => $mealType?->value],
+            'filters' => [
+                'search' => $search,
+                'meal_type' => $mealType?->value,
+                'calorie_range' => $calorieRange?->value,
+                'diets' => array_map(fn (DietaryTag $tag): string => $tag->value, $diets),
+            ],
             'calorieRanges' => self::calorieRangeOptions(),
             'mealTypes' => MealType::options(),
+            'dietaryTags' => DietaryTag::options(),
         ]);
     }
 
@@ -48,6 +63,7 @@ class RecipeController extends Controller
     {
         return Inertia::render('admin/recipes/create', [
             'mealTypes' => MealType::options(),
+            'dietaryTags' => DietaryTag::options(),
         ]);
     }
 
@@ -57,8 +73,9 @@ class RecipeController extends Controller
     public function store(RecipeRequest $request): RedirectResponse
     {
         $recipe = DB::transaction(function () use ($request): Recipe {
-            $recipe = Recipe::create(Arr::except($request->validated(), 'meal_types'));
+            $recipe = Recipe::create(Arr::except($request->validated(), ['meal_types', 'dietary_tags']));
             $recipe->syncMealTypes($request->mealTypes());
+            $recipe->syncDietaryTags($request->dietaryTags());
 
             return $recipe;
         });
@@ -73,7 +90,7 @@ class RecipeController extends Controller
      */
     public function show(Recipe $recipe): Response
     {
-        $recipe->load(['versions.ingredients', 'versions.steps', 'mealTypes']);
+        $recipe->load(['versions.ingredients', 'versions.steps', 'mealTypes', 'dietaryTags']);
 
         return Inertia::render('admin/recipes/show', [
             'recipe' => $recipe,
@@ -88,8 +105,9 @@ class RecipeController extends Controller
     public function edit(Recipe $recipe): Response
     {
         return Inertia::render('admin/recipes/edit', [
-            'recipe' => $recipe->load('mealTypes'),
+            'recipe' => $recipe->load(['mealTypes', 'dietaryTags']),
             'mealTypes' => MealType::options(),
+            'dietaryTags' => DietaryTag::options(),
         ]);
     }
 
@@ -99,8 +117,9 @@ class RecipeController extends Controller
     public function update(RecipeRequest $request, Recipe $recipe): RedirectResponse
     {
         DB::transaction(function () use ($request, $recipe): void {
-            $recipe->update(Arr::except($request->validated(), 'meal_types'));
+            $recipe->update(Arr::except($request->validated(), ['meal_types', 'dietary_tags']));
             $recipe->syncMealTypes($request->mealTypes());
+            $recipe->syncDietaryTags($request->dietaryTags());
         });
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Recipe updated.')]);

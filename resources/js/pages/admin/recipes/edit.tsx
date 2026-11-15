@@ -7,11 +7,15 @@ import {
 } from '@/actions/App/Http/Controllers/Admin/RecipeController';
 import Heading from '@/components/heading';
 import RecipeForm from '@/components/recipe-form';
-import type { MealTypeOption, Recipe } from '@/types';
+import type { DietaryTagOption, MealTypeOption, Recipe } from '@/types';
 
-type Props = { recipe: Recipe; mealTypes: MealTypeOption[] };
+type Props = {
+    recipe: Recipe;
+    mealTypes: MealTypeOption[];
+    dietaryTags: DietaryTagOption[];
+};
 
-export default function EditRecipe({ recipe, mealTypes }: Props) {
+export default function EditRecipe({ recipe, mealTypes, dietaryTags }: Props) {
     return (
         <>
             <Head title={`Edit ${recipe.name}`} />
@@ -25,6 +29,7 @@ export default function EditRecipe({ recipe, mealTypes }: Props) {
                     form={update.form(recipe.id)}
                     recipe={recipe}
                     mealTypes={mealTypes}
+                    dietaryTags={dietaryTags}
                     submitLabel="Save changes"
                     cancelHref={show.url(recipe.id)}
                 />

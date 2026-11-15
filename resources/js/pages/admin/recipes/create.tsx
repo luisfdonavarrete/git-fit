@@ -6,12 +6,14 @@ import {
 } from '@/actions/App/Http/Controllers/Admin/RecipeController';
 import Heading from '@/components/heading';
 import RecipeForm from '@/components/recipe-form';
-import type { MealTypeOption } from '@/types';
+import type { DietaryTagOption, MealTypeOption } from '@/types';
 
 export default function CreateRecipe({
     mealTypes,
+    dietaryTags,
 }: {
     mealTypes: MealTypeOption[];
+    dietaryTags: DietaryTagOption[];
 }) {
     return (
         <>
@@ -25,6 +27,7 @@ export default function CreateRecipe({
                 <RecipeForm
                     form={store.form()}
                     mealTypes={mealTypes}
+                    dietaryTags={dietaryTags}
                     submitLabel="Create recipe"
                     cancelHref={index.url()}
                 />

@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\CalorieRange;
+use App\Enums\DietaryTag;
 use App\Enums\MealType;
 use Database\Factories\RecipeFactory;
 use Illuminate\Database\Eloquent\Attributes\Appends;
@@ -67,6 +69,16 @@ class Recipe extends Model
     }
 
     /**
+     * The dietary labels this recipe carries, e.g. vegan or gluten-free.
+     *
+     * @return HasMany<RecipeDietaryTag, $this>
+     */
+    public function dietaryTags(): HasMany
+    {
+        return $this->hasMany(RecipeDietaryTag::class);
+    }
+
+    /**
      * Replace the recipe's meal types with exactly the given ones.
      *
      * @param  array<array-key, MealType>  $mealTypes
@@ -92,5 +104,46 @@ class Recipe extends Model
     public function scopeForMealType(Builder $query, MealType $mealType): void
     {
         $query->whereHas('mealTypes', fn (Builder $mealTypes) => $mealTypes->where('meal_type', $mealType));
+    }
+
+    /**
+     * Replace the recipe's dietary tags with exactly the given ones.
+     *
+     * @param  array<array-key, DietaryTag>  $dietaryTags
+     */
+    public function syncDietaryTags(array $dietaryTags): void
+    {
+        $values = array_values(array_unique(array_map(fn (DietaryTag $tag): string => $tag->value, $dietaryTags)));
+
+        $this->dietaryTags()->whereNotIn('dietary_tag', $values)->delete();
+
+        $existing = $this->dietaryTags()->pluck('dietary_tag')->map(fn (DietaryTag $tag): string => $tag->value)->all();
+
+        $this->dietaryTags()->createMany(
+            array_map(fn (string $value): array => ['dietary_tag' => $value], array_values(array_diff($values, $existing))),
+        );
+    }
+
+    /**
+     * Limit to recipes that meet every given dietary requirement (a vegan recipe counts as vegetarian and dairy-free).
+     *
+     * @param  Builder<Recipe>  $query
+     * @param  array<array-key, DietaryTag>  $dietaryTags
+     */
+    public function scopeMeetsDiets(Builder $query, array $dietaryTags): void
+    {
+        foreach ($dietaryTags as $dietaryTag) {
+            $query->whereHas('dietaryTags', fn (Builder $tags) => $tags->whereIn('dietary_tag', $dietaryTag->satisfiedBy()));
+        }
+    }
+
+    /**
+     * Limit to recipes that have a version in the given calorie range.
+     *
+     * @param  Builder<Recipe>  $query
+     */
+    public function scopeWithVersionInRange(Builder $query, CalorieRange $calorieRange): void
+    {
+        $query->whereHas('versions', fn (Builder $versions) => $versions->where('calorie_range', $calorieRange));
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\DietaryTag;
 use App\Enums\MealType;
 use App\Models\Recipe;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -35,5 +36,13 @@ class RecipeFactory extends Factory
     public function withMealTypes(MealType ...$mealTypes): static
     {
         return $this->afterCreating(fn (Recipe $recipe) => $recipe->syncMealTypes($mealTypes));
+    }
+
+    /**
+     * Tag the recipe with the given dietary labels.
+     */
+    public function withDietaryTags(DietaryTag ...$dietaryTags): static
+    {
+        return $this->afterCreating(fn (Recipe $recipe) => $recipe->syncDietaryTags($dietaryTags));
     }
 }

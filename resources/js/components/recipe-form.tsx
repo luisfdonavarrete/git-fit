@@ -1,13 +1,15 @@
 import { Form, Link } from '@inertiajs/react';
 import { ImageIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { dietaryTagIcons } from '@/lib/dietary-tag';
 import { mealTypeIcons } from '@/lib/meal-type';
-import type { MealTypeOption, Recipe } from '@/types';
+import type { DietaryTagOption, MealTypeOption, Recipe } from '@/types';
 
 function slugify(value: string): string {
     return value
@@ -23,12 +25,14 @@ export default function RecipeForm({
     form,
     recipe,
     mealTypes,
+    dietaryTags,
     submitLabel,
     cancelHref,
 }: {
     form: { action: string; method: 'get' | 'post' };
     recipe?: Recipe;
     mealTypes: MealTypeOption[];
+    dietaryTags: DietaryTagOption[];
     submitLabel: string;
     cancelHref: string;
 }) {
@@ -45,9 +49,6 @@ export default function RecipeForm({
           : null;
 
     const slugPreview = slug ? slugify(slug) : slugify(name);
-    const selectedMealTypes = new Set(
-        recipe?.meal_types?.map((m) => m.meal_type) ?? [],
-    );
 
     return (
         <Form {...form} className="grid gap-8 lg:grid-cols-[1fr_18rem]">
@@ -103,48 +104,31 @@ export default function RecipeForm({
                             <InputError message={errors.slug} />
                         </div>
 
-                        <fieldset className="grid gap-2">
-                            <legend className="mb-2 text-sm leading-none font-medium">
-                                Meal types{' '}
-                                <span className="font-normal text-muted-foreground">
-                                    (pick all that apply)
-                                </span>
-                            </legend>
-                            <div className="flex flex-wrap gap-2">
-                                {mealTypes.map((type) => {
-                                    const Icon = mealTypeIcons[type.value];
+                        <TagFieldset
+                            legend="Meal types"
+                            name="meal_types"
+                            options={mealTypes.map((type) => ({
+                                ...type,
+                                icon: mealTypeIcons[type.value],
+                            }))}
+                            selected={recipe?.meal_types?.map(
+                                (m) => m.meal_type,
+                            )}
+                            errors={errors}
+                        />
 
-                                    return (
-                                        <label
-                                            key={type.value}
-                                            className="relative cursor-pointer"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                name="meal_types[]"
-                                                value={type.value}
-                                                defaultChecked={selectedMealTypes.has(
-                                                    type.value,
-                                                )}
-                                                className="peer sr-only"
-                                            />
-                                            <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm text-muted-foreground shadow-xs transition-colors peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50 hover:bg-accent peer-checked:hover:bg-primary/90">
-                                                <Icon className="size-3.5" />
-                                                {type.label}
-                                            </span>
-                                        </label>
-                                    );
-                                })}
-                            </div>
-                            <InputError
-                                message={
-                                    errors.meal_types ??
-                                    Object.entries(errors).find(([key]) =>
-                                        key.startsWith('meal_types.'),
-                                    )?.[1]
-                                }
-                            />
-                        </fieldset>
+                        <TagFieldset
+                            legend="Dietary tags"
+                            name="dietary_tags"
+                            options={dietaryTags.map((tag) => ({
+                                ...tag,
+                                icon: dietaryTagIcons[tag.value],
+                            }))}
+                            selected={recipe?.dietary_tags?.map(
+                                (t) => t.dietary_tag,
+                            )}
+                            errors={errors}
+                        />
 
                         <div className="grid gap-2">
                             <Label htmlFor="description">Description</Label>
@@ -221,5 +205,52 @@ export default function RecipeForm({
                 </>
             )}
         </Form>
+    );
+}
+
+function TagFieldset({
+    legend,
+    name,
+    options,
+    selected = [],
+    errors,
+}: {
+    legend: string;
+    name: string;
+    options: { value: string; label: string; icon: LucideIcon }[];
+    selected?: string[];
+    errors: Record<string, string | undefined>;
+}) {
+    const error =
+        errors[name] ??
+        Object.entries(errors).find(([key]) => key.startsWith(`${name}.`))?.[1];
+
+    return (
+        <fieldset className="grid gap-2">
+            <legend className="mb-2 text-sm leading-none font-medium">
+                {legend}{' '}
+                <span className="font-normal text-muted-foreground">
+                    (pick all that apply)
+                </span>
+            </legend>
+            <div className="flex flex-wrap gap-2">
+                {options.map(({ value, label, icon: Icon }) => (
+                    <label key={value} className="relative cursor-pointer">
+                        <input
+                            type="checkbox"
+                            name={`${name}[]`}
+                            value={value}
+                            defaultChecked={selected.includes(value)}
+                            className="peer sr-only"
+                        />
+                        <span className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm text-muted-foreground shadow-xs transition-colors peer-checked:border-primary peer-checked:bg-primary peer-checked:text-primary-foreground peer-focus-visible:ring-[3px] peer-focus-visible:ring-ring/50 hover:bg-accent peer-checked:hover:bg-primary/90">
+                            <Icon className="size-3.5" />
+                            {label}
+                        </span>
+                    </label>
+                ))}
+            </div>
+            <InputError message={error} />
+        </fieldset>
     );
 }

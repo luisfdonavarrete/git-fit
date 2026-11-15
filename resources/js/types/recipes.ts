@@ -24,6 +24,23 @@ export type RecipeMealType = {
     meal_type: MealTypeValue;
 };
 
+export type DietaryTagValue =
+    | 'vegan'
+    | 'vegetarian'
+    | 'gluten_free'
+    | 'dairy_free';
+
+export type DietaryTagOption = {
+    value: DietaryTagValue;
+    label: string;
+};
+
+export type RecipeDietaryTag = {
+    id: number;
+    recipe_id: number;
+    dietary_tag: DietaryTagValue;
+};
+
 export type RecipeIngredient = {
     id: number;
     position: number;
@@ -67,6 +84,7 @@ export type Recipe = {
     updated_at: string;
     versions?: RecipeVersion[];
     meal_types?: RecipeMealType[];
+    dietary_tags?: RecipeDietaryTag[];
 };
 
 export type Paginated<T> = {
