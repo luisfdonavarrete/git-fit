@@ -6,7 +6,6 @@ use App\Actions\Coach\BuildCoachWeeks;
 use App\Actions\Coach\CalculateCoachTargets;
 use App\Actions\Coach\PresentCoachTargets;
 use App\Models\NutritionGoal;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
 use Inertia\Inertia;
@@ -15,19 +14,20 @@ use Inertia\Response;
 class ProgressController extends Controller
 {
     /**
-     * Week-by-week averages, measured maintenance and monthly actual vs goal weight change.
+     * Week-by-week averages, measured maintenance and monthly actual vs goal weight change,
+     * or a prompt to set up the coach first.
      */
     public function show(
         Request $request,
         BuildCoachWeeks $buildCoachWeeks,
         CalculateCoachTargets $calculateCoachTargets,
         PresentCoachTargets $presentCoachTargets,
-    ): Response|RedirectResponse {
+    ): Response {
         $user = $request->user();
         $profile = $user->coachProfile;
 
         if ($profile === null) {
-            return to_route('coach.edit');
+            return Inertia::render('progress', ['hasCoach' => false]);
         }
 
         $unit = $profile->weight_unit;
@@ -61,6 +61,7 @@ class ProgressController extends Controller
         }
 
         return Inertia::render('progress', [
+            'hasCoach' => true,
             'startedOn' => $profile->started_on->toDateString(),
             'today' => today()->toDateString(),
             'unit' => $unit->label(),

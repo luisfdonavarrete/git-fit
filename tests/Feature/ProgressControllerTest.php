@@ -6,8 +6,14 @@ use App\Models\DailyCheckIn;
 use App\Models\User;
 use Inertia\Testing\AssertableInertia as Assert;
 
-it('sends users without a coach to the setup page', function () {
-    $this->actingAs(User::factory()->create())->get(route('progress'))->assertRedirect(route('coach.edit'));
+it('asks users without a coach to set it up', function () {
+    $response = $this->actingAs(User::factory()->create())->get(route('progress'));
+
+    $response->assertOk()->assertInertia(fn (Assert $page) => $page
+        ->component('progress')
+        ->where('hasCoach', false)
+        ->missing('weeks')
+    );
 });
 
 it('lists each week\'s averages and change in the user\'s unit', function () {
@@ -24,6 +30,7 @@ it('lists each week\'s averages and change in the user\'s unit', function () {
 
     $response->assertInertia(fn (Assert $page) => $page
         ->component('progress')
+        ->where('hasCoach', true)
         ->where('unit', 'lbs')
         ->has('weeks', 2)
         ->where('weeks.0.avg_weight', 168.5)

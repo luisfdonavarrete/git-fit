@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Sparkles } from 'lucide-react';
+import { LineChart, Sparkles } from 'lucide-react';
 import { edit as coachEdit } from '@/actions/App/Http/Controllers/CoachProfileController';
 import { show } from '@/actions/App/Http/Controllers/ProgressController';
 import CoachTargetsCard from '@/components/coach-targets-card';
@@ -8,7 +8,7 @@ import WeightTrendChart from '@/components/weight-trend-chart';
 import { cn } from '@/lib/utils';
 import type { CoachTargets, ProgressMonth, ProgressWeek } from '@/types';
 
-type Props = {
+type ReportProps = {
     startedOn: string;
     today: string;
     unit: string;
@@ -17,6 +17,8 @@ type Props = {
     weeks: ProgressWeek[];
     months: ProgressMonth[];
 };
+
+type Props = ({ hasCoach: true } & ReportProps) | { hasCoach: false };
 
 function shortDate(date: string): string {
     const [year, month, day] = date.split('-').map(Number);
@@ -35,7 +37,41 @@ function signed(value: number | null, digits = 1): string {
     return `${value > 0 ? '+' : ''}${value.toFixed(digits)}`;
 }
 
-export default function Progress({
+export default function Progress(props: Props) {
+    return props.hasCoach ? <ProgressReport {...props} /> : <SetUpCoach />;
+}
+
+function SetUpCoach() {
+    return (
+        <>
+            <Head title="Progress" />
+            <div className="flex flex-1 items-center justify-center p-4 md:p-6">
+                <div className="flex max-w-md flex-col items-center rounded-2xl border border-dashed px-8 py-14 text-center">
+                    <span className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+                        <LineChart className="size-5" />
+                    </span>
+                    <h1 className="mt-4 text-lg font-semibold">
+                        Your progress starts with the coach
+                    </h1>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Set up the coach with your body stats and goal. Then
+                        weigh in daily and log your meals, and your weekly
+                        averages, measured maintenance and monthly progress show
+                        up here.
+                    </p>
+                    <Button className="mt-6" asChild>
+                        <Link href={coachEdit()}>
+                            <Sparkles />
+                            Set up your coach
+                        </Link>
+                    </Button>
+                </div>
+            </div>
+        </>
+    );
+}
+
+function ProgressReport({
     startedOn,
     today,
     unit,
@@ -43,7 +79,7 @@ export default function Progress({
     targets,
     weeks,
     months,
-}: Props) {
+}: ReportProps) {
     return (
         <>
             <Head title="Progress" />
