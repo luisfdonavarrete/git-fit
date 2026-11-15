@@ -1,5 +1,4 @@
 import { Link } from '@inertiajs/react';
-import { ChefHat, LayoutGrid, LineChart, Sparkles } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavMain } from '@/components/nav-main';
 import { NavUser } from '@/components/nav-user';
@@ -12,33 +11,8 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard, progress } from '@/routes';
-import { edit as coachEdit } from '@/routes/coach';
-import { index as recipesIndex } from '@/routes/admin/recipes';
-import type { NavItem } from '@/types';
-
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-    {
-        title: 'Progress',
-        href: progress(),
-        icon: LineChart,
-    },
-    {
-        title: 'Coach',
-        href: coachEdit(),
-        icon: Sparkles,
-    },
-    {
-        title: 'Recipes',
-        href: recipesIndex(),
-        icon: ChefHat,
-    },
-];
+import { mainNavGroups } from '@/lib/navigation';
+import { dashboard } from '@/routes';
 
 export function AppSidebar() {
     return (
@@ -56,7 +30,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain groups={mainNavGroups} />
             </SidebarContent>
 
             <SidebarFooter>
