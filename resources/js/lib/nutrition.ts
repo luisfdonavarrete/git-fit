@@ -24,6 +24,13 @@ export function dayLabel(date: string, today: string): string {
         return 'Tomorrow';
     }
 
+    return formatDay(date, today);
+}
+
+/**
+ * Always the calendar date, e.g. "Sat, Nov 15" (with the year when it isn't the current one).
+ */
+export function formatDay(date: string, today: string): string {
     const [year, month, day] = date.split('-').map(Number);
 
     return new Date(Date.UTC(year, month - 1, day)).toLocaleDateString(

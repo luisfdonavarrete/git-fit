@@ -5,7 +5,7 @@ import type { FormEvent } from 'react';
 import { update } from '@/actions/App/Http/Controllers/DailyCheckInController';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { dayLabel } from '@/lib/nutrition';
+import { formatDay } from '@/lib/nutrition';
 import { cn } from '@/lib/utils';
 import type { CoachPhaseValue, DailyCheckIn } from '@/types';
 
@@ -66,7 +66,7 @@ export default function WeighInCard({
                     Weigh-in
                 </h2>
                 <span className="text-xs text-muted-foreground">
-                    {dayLabel(date, today)}
+                    {formatDay(date, today)}
                 </span>
             </div>
 
