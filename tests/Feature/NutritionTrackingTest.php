@@ -76,7 +76,7 @@ it('uses the latest goal that started on or before the day', function () {
         ->and($user->goalOn(Carbon::parse('2026-11-10'))?->calories)->toBe(2200);
 });
 
-it('sums only the user\'s entries for that day against the goal in effect', function () {
+it('sums only the user\'s eaten entries for that day against the goal in effect', function () {
     $user = User::factory()->create();
     $day = Carbon::parse('2026-11-14');
     NutritionGoal::factory()->for($user)->create(['effective_from' => '2026-11-01', 'calories' => 2000, 'protein_g' => 150]);
@@ -87,6 +87,7 @@ it('sums only the user\'s entries for that day against the goal in effect', func
     MealEntry::factory()->for($user)->fromRecipeVersion($version, 0.5)->create(['eaten_on' => $day]);
     MealEntry::factory()->for($user)->fromRecipeVersion($version)->create(['eaten_on' => $day->copy()->subDay()]);
     MealEntry::factory()->fromRecipeVersion($version)->create(['eaten_on' => $day]);
+    MealEntry::factory()->for($user)->pending()->fromRecipeVersion($version)->create(['eaten_on' => $day]);
 
     expect($user->nutritionSummaryFor($day))->toBe([
         'date' => '2026-11-14',

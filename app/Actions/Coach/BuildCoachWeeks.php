@@ -43,6 +43,7 @@ class BuildCoachWeeks
             ->keyBy(fn (DailyCheckIn $checkIn): string => $checkIn->checked_on->toDateString());
 
         $diaryCalories = $user->mealEntries()
+            ->eaten()
             ->toBase()
             ->selectRaw('date(eaten_on) as day, sum(calories) as calories')
             ->whereDate('eaten_on', '>=', $from)

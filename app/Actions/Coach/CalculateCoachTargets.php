@@ -15,7 +15,9 @@ use Carbon\CarbonInterface;
  * Mirrors the Built With Science spreadsheet, minus its quirks (see BuildCoachWeeks for the data side).
  *
  * @phpstan-type CoachWeek array{number: int, starts_on: string, ends_on: string, avg_weight_kg: float|null, weigh_in_days: int, avg_calories: float|null, calorie_days: int, measured_tdee: float|null}
- * @phpstan-type CoachTargets array{current_week: int, phase: CoachPhase, weekly_change_pct: float|null, weekly_change_kg: float, latest_weight_kg: float, maintenance: int, maintenance_source: 'formula'|'measured', formula_maintenance: int, calories: int, calorie_range: array{int, int}, protein_g: float, protein_range: array{int, int}, fat_g: float, fat_range: array{int, int}, carbs_g: float, carbs_range: array{int, int}, adapts_from: string}
+ * @phpstan-type CoachMeasuredWeek array{number: int, avg_calories: float|null, weight_change_kg: float|null, tdee: float}
+ * @phpstan-type CoachBreakdown array{starting_weight_kg: float, body_fat_pct: float, lean_mass_kg: float, activity_multiplier: float, rate_rule: string, unfloored_calories: float, calorie_floor: int, is_floored: bool, protein_per_lb: array{float, float, float}, fat_share: array{float, float, float}, measured_weeks: list<CoachMeasuredWeek>}
+ * @phpstan-type CoachTargets array{current_week: int, phase: CoachPhase, weekly_change_pct: float|null, weekly_change_kg: float, latest_weight_kg: float, maintenance: int, maintenance_source: 'formula'|'measured', formula_maintenance: int, calories: int, calorie_range: array{int, int}, protein_g: float, protein_range: array{int, int}, fat_g: float, fat_range: array{int, int}, carbs_g: float, carbs_range: array{int, int}, adapts_from: string, breakdown: CoachBreakdown}
  */
 class CalculateCoachTargets
 {
@@ -63,11 +65,17 @@ class CalculateCoachTargets
             ? (float) $profile->weekly_change_override_kg
             : $weeklyChangePct / 100 * $latestWeightKg;
 
-        $formulaMaintenance = (370 + self::KCAL_PER_KG_LEAN_MASS * $startingWeightKg * (1 - $bodyFat / 100)) * ($isMale ? 1.5 : 1.55);
-        $measuredMaintenance = $currentWeek >= self::ADAPTIVE_FROM_WEEK ? $this->measuredMaintenance($completeWeeks) : null;
+        $leanMassKg = $startingWeightKg * (1 - $bodyFat / 100);
+        $activityMultiplier = $isMale ? 1.5 : 1.55;
+        $formulaMaintenance = (370 + self::KCAL_PER_KG_LEAN_MASS * $leanMassKg) * $activityMultiplier;
+        $measuredWeeks = $currentWeek >= self::ADAPTIVE_FROM_WEEK ? $this->measuredWeeks($completeWeeks) : [];
+        $measuredMaintenance = $measuredWeeks === []
+            ? null
+            : array_sum(array_column($measuredWeeks, 'tdee')) / count($measuredWeeks);
         $maintenance = $measuredMaintenance ?? $formulaMaintenance;
 
-        $calories = max(self::calorieFloor($profile->sex), $maintenance + $weeklyChangeKg * self::KCAL_PER_KG / 7);
+        $unflooredCalories = $maintenance + $weeklyChangeKg * self::KCAL_PER_KG / 7;
+        $calories = max(self::calorieFloor($profile->sex), $unflooredCalories);
 
         [$proteinPerLb, $proteinMinPerLb, $proteinMaxPerLb] = $this->proteinMultipliers($profile->sex, $bodyFat);
         $protein = $proteinPerLb * $startingWeightLb;
@@ -96,6 +104,19 @@ class CalculateCoachTargets
             'carbs_g' => round($carbs, 1),
             'carbs_range' => [self::mround($carbs * 0.8, 10), self::mround($carbs * 1.2, 10)],
             'adapts_from' => $profile->weekStartsOn(self::ADAPTIVE_FROM_WEEK)->toDateString(),
+            'breakdown' => [
+                'starting_weight_kg' => $startingWeightKg,
+                'body_fat_pct' => $bodyFat,
+                'lean_mass_kg' => $leanMassKg,
+                'activity_multiplier' => $activityMultiplier,
+                'rate_rule' => $this->rateRule($profile, $phase, $bracket, $weeklyChangePct),
+                'unfloored_calories' => $unflooredCalories,
+                'calorie_floor' => self::calorieFloor($profile->sex),
+                'is_floored' => $unflooredCalories < self::calorieFloor($profile->sex),
+                'protein_per_lb' => [$proteinPerLb, $proteinMinPerLb, $proteinMaxPerLb],
+                'fat_share' => [$fatShare, $fatMinShare, $fatMaxShare],
+                'measured_weeks' => $measuredWeeks,
+            ],
         ];
     }
 
@@ -125,13 +146,61 @@ class CalculateCoachTargets
      */
     private function bodyFatBracket(Sex $sex, float $bodyFat): int
     {
-        [$high, $middle, $low] = $sex === Sex::Male ? [25, 15, 12] : [30, 25, 22];
+        [$high, $middle, $low] = $this->bodyFatThresholds($sex);
 
         return match (true) {
             $bodyFat >= $high => 1,
             $bodyFat > $middle => 2,
             $bodyFat > $low => 3,
             default => 4,
+        };
+    }
+
+    /**
+     * The body-fat percentages that separate the four brackets, highest first.
+     *
+     * @return array{int, int, int}
+     */
+    private function bodyFatThresholds(Sex $sex): array
+    {
+        return $sex === Sex::Male ? [25, 15, 12] : [30, 25, 22];
+    }
+
+    /**
+     * The body-fat span a bracket covers, e.g. "15–25%".
+     */
+    private function bodyFatRange(Sex $sex, int $bracket): string
+    {
+        [$high, $middle, $low] = $this->bodyFatThresholds($sex);
+
+        return match ($bracket) {
+            1 => "{$high}% or more",
+            2 => "{$middle}–{$high}%",
+            3 => "{$low}–{$middle}%",
+            default => "{$low}% or less",
+        };
+    }
+
+    /**
+     * Why the weekly rate is what it is, in words.
+     */
+    private function rateRule(CoachProfile $profile, CoachPhase $phase, int $bracket, ?float $weeklyChangePct): string
+    {
+        if ($weeklyChangePct === null) {
+            return __('You set a custom weekly change.');
+        }
+
+        $range = $this->bodyFatRange($profile->sex, $bracket);
+
+        return match ($phase) {
+            CoachPhase::Maintain => __('Maintaining: no weekly change.'),
+            CoachPhase::Cut => $profile->main_goal === MainGoal::BuildMuscle
+                ? __('Building muscle from :range body fat starts with a cut, at :pct% of body weight per week.', ['range' => $range, 'pct' => $weeklyChangePct])
+                : __('Cutting at :range body fat: :pct% of body weight per week.', ['range' => $range, 'pct' => $weeklyChangePct]),
+            CoachPhase::LeanBulk => __('Lean bulk as a :level lifter: +:pct% of body weight per week.', [
+                'level' => strtolower($profile->training_experience->label()),
+                'pct' => round($weeklyChangePct, 3),
+            ]),
         };
     }
 
@@ -164,19 +233,34 @@ class CalculateCoachTargets
     }
 
     /**
-     * Average of the measured weekly TDEEs from week 2 on; week 1 is skipped because it is
-     * compared against a single starting weigh-in, which exaggerates the drop with water weight.
+     * The complete weeks whose measured TDEE feeds maintenance, from week 2 on; week 1 is skipped
+     * because it is compared against a single starting weigh-in, which exaggerates the drop with
+     * water weight.
      *
      * @param  list<CoachWeek>  $completeWeeks
+     * @return list<CoachMeasuredWeek>
      */
-    private function measuredMaintenance(array $completeWeeks): ?float
+    private function measuredWeeks(array $completeWeeks): array
     {
-        $measured = array_values(array_filter(array_map(
-            fn (array $week): ?float => $week['number'] >= 2 ? $week['measured_tdee'] : null,
-            $completeWeeks,
-        ), fn (?float $tdee): bool => $tdee !== null));
+        $measured = [];
+        $previousAverageWeight = null;
 
-        return $measured === [] ? null : array_sum($measured) / count($measured);
+        foreach ($completeWeeks as $week) {
+            if ($week['number'] >= 2 && $week['measured_tdee'] !== null) {
+                $measured[] = [
+                    'number' => $week['number'],
+                    'avg_calories' => $week['avg_calories'],
+                    'weight_change_kg' => $week['avg_weight_kg'] === null || $previousAverageWeight === null
+                        ? null
+                        : $week['avg_weight_kg'] - $previousAverageWeight,
+                    'tdee' => $week['measured_tdee'],
+                ];
+            }
+
+            $previousAverageWeight = $week['avg_weight_kg'];
+        }
+
+        return $measured;
     }
 
     /**

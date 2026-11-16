@@ -1,16 +1,22 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
     ArrowRightLeft,
+    Bot,
+    Check,
     MoreHorizontal,
     Pencil,
+    RefreshCw,
     Trash2,
     UtensilsCrossed,
 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import {
+    confirm,
     destroy,
     update,
 } from '@/actions/App/Http/Controllers/MealEntryController';
+import { swap } from '@/actions/App/Http/Controllers/MealPlanController';
 import CalorieRangeBadge from '@/components/calorie-range-badge';
 import ServingsStepper from '@/components/servings-stepper';
 import { Button } from '@/components/ui/button';
@@ -35,7 +41,13 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { mealTypeIcons, mealTypeLabels } from '@/lib/meal-type';
 import { formatGrams, formatServings, grams } from '@/lib/nutrition';
-import type { DiaryEntry, DiaryMealType } from '@/types';
+import { cn } from '@/lib/utils';
+import type {
+    DiaryEntry,
+    DiaryMealType,
+    MealPlanSummary,
+    MealPlannerOption,
+} from '@/types';
 
 const diarySections: DiaryMealType[] = [
     'breakfast',
@@ -63,9 +75,44 @@ export default function MealEntryRow({
     const remove = () =>
         router.visit(destroy(entry.id), { preserveScroll: true });
 
+    const isPending = entry.status === 'pending';
+    const markEaten = () =>
+        router.visit(confirm(entry.id), { preserveScroll: true });
+
+    const { mealPlan } = usePage<{ mealPlan?: MealPlanSummary }>().props;
+    const aiAvailable =
+        mealPlan?.planners.some(
+            (planner) => planner.value === 'claude' && planner.available,
+        ) ?? false;
+    const [swapping, setSwapping] = useState(false);
+    const swapFor = (planner: MealPlannerOption['value']) =>
+        router.visit(swap(entry.id), {
+            data: { planner },
+            preserveScroll: true,
+            onStart: () => setSwapping(true),
+            onFinish: () => setSwapping(false),
+            onError: (errors) =>
+                toast.error(
+                    errors.meal_plan ??
+                        errors.planner ??
+                        'Could not swap this meal.',
+                ),
+        });
+
     return (
-        <li className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/40">
-            <div className="size-11 shrink-0 overflow-hidden rounded-lg bg-muted">
+        <li
+            className={cn(
+                'group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/40',
+                isPending && 'bg-violet-500/[0.03]',
+            )}
+        >
+            <div
+                className={cn(
+                    'size-11 shrink-0 overflow-hidden rounded-lg bg-muted',
+                    isPending &&
+                        'opacity-60 outline-1 outline-violet-500/50 outline-dashed',
+                )}
+            >
                 {entry.image_url ? (
                     <img
                         src={entry.image_url}
@@ -89,6 +136,11 @@ export default function MealEntryRow({
                     {entry.name}
                 </span>
                 <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    {isPending && (
+                        <span className="rounded-full bg-violet-500/10 px-1.5 text-[11px] font-medium text-violet-600 dark:text-violet-400">
+                            Planned
+                        </span>
+                    )}
                     <CalorieRangeBadge
                         value={entry.calorie_range}
                         className="px-1.5 py-0 text-[11px]"
@@ -97,7 +149,12 @@ export default function MealEntryRow({
                 </span>
             </button>
 
-            <div className="text-right tabular-nums">
+            <div
+                className={cn(
+                    'text-right tabular-nums',
+                    isPending && 'opacity-60',
+                )}
+            >
                 <span className="block text-sm font-semibold">
                     {entry.calories}
                 </span>
@@ -105,6 +162,33 @@ export default function MealEntryRow({
                     {formatGrams(grams(entry.protein_g))} P
                 </span>
             </div>
+
+            {isPending && (
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0 rounded-full text-muted-foreground"
+                    onClick={() => swapFor('search')}
+                    disabled={swapping}
+                    aria-label={`Swap ${entry.name} for another recipe`}
+                    title="Swap for another recipe"
+                >
+                    <RefreshCw className={cn(swapping && 'animate-spin')} />
+                </Button>
+            )}
+
+            {isPending && (
+                <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-8 shrink-0 rounded-full text-violet-600 dark:text-violet-400"
+                    onClick={markEaten}
+                    aria-label={`I ate ${entry.name}`}
+                    title="I ate this"
+                >
+                    <Check />
+                </Button>
+            )}
 
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -118,6 +202,28 @@ export default function MealEntryRow({
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
+                    {isPending && (
+                        <>
+                            <DropdownMenuItem onSelect={markEaten}>
+                                <Check />I ate this
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onSelect={() => swapFor('search')}
+                            >
+                                <RefreshCw />
+                                Swap recipe
+                            </DropdownMenuItem>
+                            {aiAvailable && (
+                                <DropdownMenuItem
+                                    onSelect={() => swapFor('claude')}
+                                >
+                                    <Bot />
+                                    Swap with AI
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                        </>
+                    )}
                     <DropdownMenuItem onSelect={() => setEditing(true)}>
                         <Pencil />
                         Edit servings

@@ -4,6 +4,7 @@ use App\Http\Controllers\CoachProfileController;
 use App\Http\Controllers\DailyCheckInController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\MealEntryController;
+use App\Http\Controllers\MealPlanController;
 use App\Http\Controllers\NutritionGoalController;
 use App\Http\Controllers\ProgressController;
 use App\Http\Controllers\RecipeSearchController;
@@ -15,6 +16,18 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'show'])->name('dashboard');
 
     Route::resource('meal-entries', MealEntryController::class)->only(['store', 'update', 'destroy']);
+    Route::post('meal-entries/{meal_entry}/confirm', [MealEntryController::class, 'confirm'])->name('meal-entries.confirm');
+    Route::post('meal-entries/{meal_entry}/swap', [MealPlanController::class, 'swap'])->name('meal-entries.swap');
+
+    Route::controller(MealPlanController::class)
+        ->prefix('meal-plans/{date}')
+        ->where(['date' => '\d{4}-\d{2}-\d{2}'])
+        ->name('meal-plans.')
+        ->group(function () {
+            Route::post('/', 'store')->name('store');
+            Route::post('confirm', 'confirm')->name('confirm');
+            Route::delete('/', 'destroy')->name('destroy');
+        });
     Route::post('nutrition-goal', [NutritionGoalController::class, 'store'])->name('nutrition-goal.store');
     Route::get('recipes/search', RecipeSearchController::class)->name('recipes.search');
 

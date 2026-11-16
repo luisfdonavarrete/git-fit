@@ -20,9 +20,12 @@ export type NutritionSummary = {
     targets: Record<Macro, number | null>;
 };
 
+export type MealEntryStatus = 'pending' | 'eaten';
+
 export type DiaryEntry = {
     id: number;
     name: string;
+    status: MealEntryStatus;
     servings: string;
     calorie_range: CalorieRangeValue;
     calories: number;
@@ -36,6 +39,18 @@ export type DiaryMeal = {
     type: DiaryMealType;
     label: string;
     entries: DiaryEntry[];
+};
+
+export type MealPlannerOption = {
+    value: 'search' | 'claude';
+    label: string;
+    available: boolean;
+};
+
+export type MealPlanSummary = {
+    pending_count: number;
+    planned: { calories: number; protein_g: number };
+    planners: MealPlannerOption[];
 };
 
 export type NutritionGoal = {

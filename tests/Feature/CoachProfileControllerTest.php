@@ -105,3 +105,21 @@ it('rejects invalid answers', function (array $overrides, string $field) {
     'weekly change too aggressive' => [['weekly_change_override' => -5], 'weekly_change_override'],
     'malformed start date' => [['started_on' => '11/09/2026'], 'started_on'],
 ]);
+
+it('shows the formula constants in the user\'s unit', function (string $unit, float $startingWeight, float $leanMassKcal, int $kcalPerUnit, float $proteinPerUnit) {
+    $this->travelTo('2026-11-14 09:00');
+    $user = User::factory()->create();
+    $this->actingAs($user)->put(route('coach.update'), coachAnswers(['weight_unit' => $unit, 'starting_weight' => $startingWeight]));
+
+    $response = $this->get(route('coach.edit'));
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('targets.breakdown.starting_weight', $startingWeight)
+        ->where('targets.breakdown.lean_mass_kcal', $leanMassKcal)
+        ->where('targets.breakdown.kcal_per_unit', $kcalPerUnit)
+        ->where('targets.breakdown.protein_per_unit.0', $proteinPerUnit)
+    );
+})->with([
+    'pounds' => ['lb', 170.8, 9.8, 3500, 0.8],
+    'kilograms' => ['kg', 77.5, 21.6, 7716, 1.76],
+]);

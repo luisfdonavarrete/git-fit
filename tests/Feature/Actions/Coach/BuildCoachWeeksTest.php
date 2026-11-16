@@ -30,7 +30,7 @@ it('averages only the days that were actually logged', function () {
         ]);
 });
 
-it('takes daily calories from the diary unless a typed total overrides it', function () {
+it('takes daily calories from eaten diary entries unless a typed total overrides it', function () {
     $user = User::factory()->create();
     $profile = CoachProfile::factory()->for($user)->create(['started_on' => '2026-04-27']);
     $version = RecipeVersion::factory()->create(['calories' => 600]);
@@ -38,6 +38,8 @@ it('takes daily calories from the diary unless a typed total overrides it', func
     MealEntry::factory()->for($user)->fromRecipeVersion($version)->create(['eaten_on' => '2026-04-28']);
     DailyCheckIn::factory()->for($user)->withCaloriesOverride(2500)->create(['checked_on' => '2026-04-28', 'weight_kg' => null]);
     MealEntry::factory()->fromRecipeVersion($version)->create(['eaten_on' => '2026-04-29']);
+    MealEntry::factory()->for($user)->pending()->fromRecipeVersion($version)->create(['eaten_on' => '2026-04-27']);
+    MealEntry::factory()->for($user)->pending()->fromRecipeVersion($version)->create(['eaten_on' => '2026-04-30']);
 
     $week = (new BuildCoachWeeks)->handle($profile, Carbon::parse('2026-05-03'))[0];
 

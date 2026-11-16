@@ -7,6 +7,8 @@ use App\Actions\Coach\CalculateCoachTargets;
 use App\Actions\Coach\PresentCoachTargets;
 use App\Actions\Coach\SyncCoachGoal;
 use App\Enums\GoalSource;
+use App\Enums\MealEntryStatus;
+use App\Enums\MealPlannerType;
 use App\Enums\MealType;
 use App\Enums\WeightUnit;
 use App\Models\DailyCheckIn;
@@ -61,8 +63,9 @@ class DashboardController extends Controller
             ->onDate($date)
             ->with('recipeVersion.recipe:id,image_path')
             ->oldest()
-            ->get()
-            ->groupBy(fn (MealEntry $entry): string => $entry->meal_type->value);
+            ->get();
+        $pending = $entries->where('status', MealEntryStatus::Pending);
+        $entriesByMeal = $entries->groupBy(fn (MealEntry $entry): string => $entry->meal_type->value);
 
         return Inertia::render('dashboard', [
             'date' => $date->toDateString(),
@@ -71,12 +74,21 @@ class DashboardController extends Controller
             'goal' => $user->goalOn(today())?->only('calories', 'protein_g'),
             'coach' => $coach,
             'checkIn' => $this->checkIn($user, $date, $unit),
+            'mealPlan' => [
+                'pending_count' => $pending->count(),
+                'planned' => [
+                    'calories' => (int) $pending->sum('calories'),
+                    'protein_g' => round((float) $pending->sum(fn (MealEntry $entry): float => (float) $entry->protein_g), 1),
+                ],
+                'planners' => MealPlannerType::options(),
+            ],
             'meals' => array_map(fn (MealType $type): array => [
                 'type' => $type->value,
                 'label' => $type === MealType::Snack ? __('Snacks') : $type->label(),
-                'entries' => $entries->get($type->value, collect())->map(fn (MealEntry $entry): array => [
+                'entries' => $entriesByMeal->get($type->value, collect())->map(fn (MealEntry $entry): array => [
                     'id' => $entry->id,
                     'name' => $entry->name,
+                    'status' => $entry->status->value,
                     'servings' => $entry->servings,
                     'calorie_range' => $entry->calorie_range->value,
                     'calories' => $entry->calories,

@@ -42,6 +42,31 @@ export type CoachTargets = {
     carbs_range: [number, number];
     adapts_from: string;
     is_adaptive: boolean;
+    breakdown: CoachBreakdown;
+};
+
+/**
+ * The inputs behind each target, in the user's weight unit, for showing the formulas.
+ */
+export type CoachBreakdown = {
+    starting_weight: number;
+    body_fat_pct: number;
+    lean_mass: number;
+    lean_mass_kcal: number;
+    kcal_per_unit: number;
+    activity_multiplier: number;
+    rate_rule: string;
+    unfloored_calories: number;
+    calorie_floor: number;
+    is_floored: boolean;
+    protein_per_unit: [number, number, number];
+    fat_share: [number, number, number];
+    measured_weeks: {
+        number: number;
+        avg_calories: number | null;
+        weight_change: number | null;
+        tdee: number;
+    }[];
 };
 
 export type DashboardCoach = CoachTargets & {

@@ -89,6 +89,7 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function nutritionSummaryFor(CarbonInterface $date): array
     {
         $sums = $this->mealEntries()
+            ->eaten()
             ->onDate($date)
             ->toBase()
             ->selectRaw(implode(', ', array_map(fn (string $macro): string => "sum({$macro}) as {$macro}", MealEntry::MACROS)))

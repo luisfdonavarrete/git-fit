@@ -16,6 +16,7 @@ import {
     edit,
     update,
 } from '@/actions/App/Http/Controllers/CoachProfileController';
+import CoachFormulas from '@/components/coach-formulas';
 import { PhaseBadge } from '@/components/coach-targets-card';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
@@ -410,6 +411,8 @@ export default function CoachEdit({ profile, targets, today, options }: Props) {
                         </div>
                     </div>
                 </form>
+
+                {targets && <CoachFormulas targets={targets} />}
             </div>
         </>
     );
