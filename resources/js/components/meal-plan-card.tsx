@@ -1,29 +1,21 @@
 import { router } from '@inertiajs/react';
-import { CheckCheck, RefreshCw, Sparkles, Trash2 } from 'lucide-react';
+import { Bot, CheckCheck, RefreshCw, Sparkles, Trash2 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import {
     confirm,
     destroy,
     store,
 } from '@/actions/App/Http/Controllers/MealPlanController';
-import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
-import {
-    Dialog,
-    DialogClose,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
 import { formatGrams } from '@/lib/nutrition';
-import { cn } from '@/lib/utils';
 import type { MealPlanSummary, MealPlannerOption } from '@/types';
 
+type Action = MealPlannerOption['value'] | 'confirm' | 'discard';
+
 /**
- * Generate a day of planned meals, then confirm or discard them. Planned meals don't count
- * toward the day's totals until they're marked as eaten.
+ * Generate a day of planned meals in one click (from the recipe library or with AI), then
+ * confirm or discard them. Planned meals don't count toward the day's totals until eaten.
  */
 export default function MealPlanCard({
     plan,
@@ -32,15 +24,27 @@ export default function MealPlanCard({
     plan: MealPlanSummary;
     date: string;
 }) {
-    const [open, setOpen] = useState(false);
-    const [processing, setProcessing] = useState(false);
+    const [running, setRunning] = useState<Action | null>(null);
     const hasPlan = plan.pending_count > 0;
+    const ai = plan.planners.find((planner) => planner.value === 'claude');
 
-    const visitOptions = {
+    const visitOptions = (action: Action) => ({
         preserveScroll: true,
-        onStart: () => setProcessing(true),
-        onFinish: () => setProcessing(false),
-    };
+        onStart: () => setRunning(action),
+        onFinish: () => setRunning(null),
+    });
+
+    const generate = (planner: MealPlannerOption['value']) =>
+        router.visit(store(date), {
+            ...visitOptions(planner),
+            data: { planner },
+            onError: (errors) =>
+                toast.error(
+                    errors.meal_plan ??
+                        errors.planner ??
+                        'Could not plan this day.',
+                ),
+        });
 
     return (
         <section className="flex flex-col gap-3 rounded-2xl border border-dashed bg-card/60 px-4 py-3 sm:flex-row sm:items-center">
@@ -60,9 +64,12 @@ export default function MealPlanCard({
                     <>
                         <Button
                             size="sm"
-                            disabled={processing}
+                            disabled={running !== null}
                             onClick={() =>
-                                router.visit(confirm(date), visitOptions)
+                                router.visit(
+                                    confirm(date),
+                                    visitOptions('confirm'),
+                                )
                             }
                         >
                             <CheckCheck />
@@ -71,9 +78,12 @@ export default function MealPlanCard({
                         <Button
                             size="sm"
                             variant="ghost"
-                            disabled={processing}
+                            disabled={running !== null}
                             onClick={() =>
-                                router.visit(destroy(date), visitOptions)
+                                router.visit(
+                                    destroy(date),
+                                    visitOptions('discard'),
+                                )
                             }
                         >
                             <Trash2 />
@@ -84,112 +94,37 @@ export default function MealPlanCard({
                 <Button
                     size="sm"
                     variant={hasPlan ? 'secondary' : 'default'}
-                    disabled={processing}
-                    onClick={() => setOpen(true)}
+                    disabled={running !== null}
+                    onClick={() => generate('search')}
                 >
                     {hasPlan ? <RefreshCw /> : <Sparkles />}
-                    {hasPlan ? 'Regenerate' : 'Plan my day'}
+                    {running === 'search'
+                        ? 'Planning…'
+                        : hasPlan
+                          ? 'Regenerate'
+                          : 'Plan my day'}
                 </Button>
-            </div>
-
-            <GeneratePlanDialog
-                key={String(open)}
-                open={open}
-                onOpenChange={setOpen}
-                date={date}
-                planners={plan.planners}
-                replacing={hasPlan}
-            />
-        </section>
-    );
-}
-
-function GeneratePlanDialog({
-    open,
-    onOpenChange,
-    date,
-    planners,
-    replacing,
-}: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    date: string;
-    planners: MealPlannerOption[];
-    replacing: boolean;
-}) {
-    const [planner, setPlanner] =
-        useState<MealPlannerOption['value']>('search');
-    const [processing, setProcessing] = useState(false);
-    const [error, setError] = useState<string | undefined>();
-
-    const generate = () =>
-        router.visit(store(date), {
-            data: { planner },
-            preserveScroll: true,
-            onStart: () => {
-                setProcessing(true);
-                setError(undefined);
-            },
-            onFinish: () => setProcessing(false),
-            onSuccess: () => onOpenChange(false),
-            onError: (errors) => setError(errors.meal_plan ?? errors.planner),
-        });
-
-    return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                    <DialogTitle>Plan my day</DialogTitle>
-                    <DialogDescription>
-                        Fills the meals you haven't eaten yet to fit what's left
-                        of your goal.
-                        {replacing && ' This replaces the current plan.'}
-                    </DialogDescription>
-                </DialogHeader>
-
-                <div className="grid gap-2" role="radiogroup">
-                    {planners.map((option) => (
-                        <button
-                            key={option.value}
-                            type="button"
-                            role="radio"
-                            aria-checked={planner === option.value}
-                            disabled={!option.available}
-                            onClick={() => setPlanner(option.value)}
-                            className={cn(
-                                'rounded-xl border px-4 py-3 text-left text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-                                planner === option.value
-                                    ? 'border-primary bg-primary/5'
-                                    : 'hover:bg-accent',
-                            )}
-                        >
-                            <span className="block font-medium">
-                                {option.label}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                                {option.value === 'search'
-                                    ? 'Instant. Searches your recipes for the best fit.'
-                                    : option.available
-                                      ? 'Asks Claude to choose. Slower; may not always work.'
-                                      : 'Set ANTHROPIC_API_KEY to enable.'}
-                            </span>
-                        </button>
-                    ))}
-                </div>
-
-                <InputError message={error} />
-
-                <DialogFooter className="gap-2">
-                    <DialogClose asChild>
-                        <Button type="button" variant="secondary">
-                            Cancel
-                        </Button>
-                    </DialogClose>
-                    <Button onClick={generate} disabled={processing}>
-                        {processing ? 'Planning…' : 'Generate'}
+                {ai && (
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={running !== null || !ai.available}
+                        title={
+                            ai.available
+                                ? 'Experimental: let Claude choose the meals'
+                                : 'Set ANTHROPIC_API_KEY to enable'
+                        }
+                        onClick={() => generate('claude')}
+                    >
+                        <Bot />
+                        {running === 'claude'
+                            ? 'Asking AI…'
+                            : hasPlan
+                              ? 'Regenerate with AI'
+                              : 'Generate with AI'}
                     </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                )}
+            </div>
+        </section>
     );
 }
