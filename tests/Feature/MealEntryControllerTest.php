@@ -4,6 +4,8 @@ use App\Enums\GoalSource;
 use App\Enums\MealType;
 use App\Models\CoachProfile;
 use App\Models\MealEntry;
+use App\Models\RecipeIngredient;
+use App\Models\RecipeStep;
 use App\Models\RecipeVersion;
 use App\Models\User;
 
@@ -64,6 +66,35 @@ it('rescales the entry\'s own snapshot when servings change, ignoring later reci
         ->and($entry->meal_type)->toBe(MealType::Dinner);
 });
 
+it('shows the recipe behind the user\'s entry with ordered ingredients and directions', function () {
+    $user = User::factory()->create();
+    $version = RecipeVersion::factory()->withNotes()->create(['prep_minutes' => 15]);
+    RecipeIngredient::factory()->for($version, 'version')->create(['position' => 2, 'name' => 'Rice']);
+    RecipeIngredient::factory()->for($version, 'version')->create(['position' => 1, 'name' => 'Chicken']);
+    RecipeStep::factory()->for($version, 'version')->create(['position' => 2, 'instruction' => 'Serve.']);
+    RecipeStep::factory()->for($version, 'version')->create(['position' => 1, 'instruction' => 'Cook the rice.']);
+    $entry = MealEntry::factory()->for($user)->fromRecipeVersion($version)->create();
+
+    $response = $this->actingAs($user)->getJson(route('meal-entries.show', $entry));
+
+    $response->assertOk()
+        ->assertJsonPath('recipe.prep_minutes', 15)
+        ->assertJsonPath('recipe.notes', $version->notes)
+        ->assertJsonPath('recipe.ingredients.*.name', ['Chicken', 'Rice'])
+        ->assertJsonPath('recipe.steps.*.instruction', ['Cook the rice.', 'Serve.']);
+});
+
+it('shows no recipe once the entry\'s recipe version is deleted', function () {
+    $user = User::factory()->create();
+    $version = RecipeVersion::factory()->create();
+    $entry = MealEntry::factory()->for($user)->fromRecipeVersion($version)->create();
+    $version->delete();
+
+    $this->actingAs($user)->getJson(route('meal-entries.show', $entry))
+        ->assertOk()
+        ->assertJsonPath('recipe', null);
+});
+
 it('removes the user\'s own entry', function () {
     $user = User::factory()->create();
     $entry = MealEntry::factory()->for($user)->create();
@@ -82,6 +113,7 @@ it('forbids changing another user\'s entry', function (string $method, string $r
     $response->assertForbidden();
     $this->assertModelExists($entry);
 })->with([
+    'view' => ['getJson', 'meal-entries.show'],
     'update' => ['put', 'meal-entries.update'],
     'delete' => ['delete', 'meal-entries.destroy'],
 ]);

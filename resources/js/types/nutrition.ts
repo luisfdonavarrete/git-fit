@@ -35,6 +35,21 @@ export type DiaryEntry = {
     image_url: string | null;
 };
 
+export type MealEntryRecipe = {
+    description: string | null;
+    image_url: string | null;
+    prep_minutes: number | null;
+    notes: string | null;
+    ingredients: {
+        id: number;
+        name: string;
+        quantity: string | null;
+        unit: string | null;
+        note: string | null;
+    }[];
+    steps: { id: number; instruction: string }[];
+};
+
 export type DiaryMeal = {
     type: DiaryMealType;
     label: string;
