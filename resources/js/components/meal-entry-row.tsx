@@ -1,18 +1,22 @@
-import { router } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {
     ArrowRightLeft,
+    Bot,
     Check,
     MoreHorizontal,
     Pencil,
+    RefreshCw,
     Trash2,
     UtensilsCrossed,
 } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import {
     confirm,
     destroy,
     update,
 } from '@/actions/App/Http/Controllers/MealEntryController';
+import { swap } from '@/actions/App/Http/Controllers/MealPlanController';
 import CalorieRangeBadge from '@/components/calorie-range-badge';
 import ServingsStepper from '@/components/servings-stepper';
 import { Button } from '@/components/ui/button';
@@ -38,7 +42,12 @@ import {
 import { mealTypeIcons, mealTypeLabels } from '@/lib/meal-type';
 import { formatGrams, formatServings, grams } from '@/lib/nutrition';
 import { cn } from '@/lib/utils';
-import type { DiaryEntry, DiaryMealType } from '@/types';
+import type {
+    DiaryEntry,
+    DiaryMealType,
+    MealPlanSummary,
+    MealPlannerOption,
+} from '@/types';
 
 const diarySections: DiaryMealType[] = [
     'breakfast',
@@ -69,6 +78,26 @@ export default function MealEntryRow({
     const isPending = entry.status === 'pending';
     const markEaten = () =>
         router.visit(confirm(entry.id), { preserveScroll: true });
+
+    const { mealPlan } = usePage<{ mealPlan?: MealPlanSummary }>().props;
+    const aiAvailable =
+        mealPlan?.planners.some(
+            (planner) => planner.value === 'claude' && planner.available,
+        ) ?? false;
+    const [swapping, setSwapping] = useState(false);
+    const swapFor = (planner: MealPlannerOption['value']) =>
+        router.visit(swap(entry.id), {
+            data: { planner },
+            preserveScroll: true,
+            onStart: () => setSwapping(true),
+            onFinish: () => setSwapping(false),
+            onError: (errors) =>
+                toast.error(
+                    errors.meal_plan ??
+                        errors.planner ??
+                        'Could not swap this meal.',
+                ),
+        });
 
     return (
         <li
@@ -136,6 +165,20 @@ export default function MealEntryRow({
 
             {isPending && (
                 <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-8 shrink-0 rounded-full text-muted-foreground"
+                    onClick={() => swapFor('search')}
+                    disabled={swapping}
+                    aria-label={`Swap ${entry.name} for another recipe`}
+                    title="Swap for another recipe"
+                >
+                    <RefreshCw className={cn(swapping && 'animate-spin')} />
+                </Button>
+            )}
+
+            {isPending && (
+                <Button
                     variant="outline"
                     size="icon"
                     className="size-8 shrink-0 rounded-full text-violet-600 dark:text-violet-400"
@@ -160,9 +203,26 @@ export default function MealEntryRow({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
                     {isPending && (
-                        <DropdownMenuItem onSelect={markEaten}>
-                            <Check />I ate this
-                        </DropdownMenuItem>
+                        <>
+                            <DropdownMenuItem onSelect={markEaten}>
+                                <Check />I ate this
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onSelect={() => swapFor('search')}
+                            >
+                                <RefreshCw />
+                                Swap recipe
+                            </DropdownMenuItem>
+                            {aiAvailable && (
+                                <DropdownMenuItem
+                                    onSelect={() => swapFor('claude')}
+                                >
+                                    <Bot />
+                                    Swap with AI
+                                </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                        </>
                     )}
                     <DropdownMenuItem onSelect={() => setEditing(true)}>
                         <Pencil />

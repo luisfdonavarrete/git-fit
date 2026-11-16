@@ -38,10 +38,7 @@ class GenerateMealPlan
      */
     public function handle(User $user, CarbonInterface $date, MealPlanner $planner): array
     {
-        $goal = $user->goalOn($date) ?? throw ValidationException::withMessages([
-            'meal_plan' => __('Set a nutrition goal before planning a day.'),
-        ]);
-
+        $goal = $this->goalOn($user, $date);
         $eaten = $user->mealEntries()->eaten()->onDate($date)->with('recipeVersion:id,recipe_id')->get();
         $slots = $this->openSlots($eaten);
 
@@ -71,13 +68,64 @@ class GenerateMealPlan
             return $entries;
         });
 
-        $plannedCalories = (int) $entries->sum('calories');
-        [$minCalories, $maxCalories] = $request->calorieWindow;
-
         return [
             'entries' => $entries,
-            'fits_calorie_window' => $plannedCalories >= $minCalories && $plannedCalories <= $maxCalories,
+            'fits_calorie_window' => $this->fitsWindow($request, (int) $entries->sum('calories')),
         ];
+    }
+
+    /**
+     * Re-plan a single pending entry with a different recipe, keeping the rest of the day as it is.
+     * Its target is whatever the goal leaves after every other entry that day, eaten or planned.
+     *
+     * @return array{entry: MealEntry, fits_calorie_window: bool}
+     *
+     * @throws ValidationException When the entry isn't pending or the day has no goal.
+     * @throws MealPlanFailed When the planner can't find another recipe.
+     */
+    public function swap(MealEntry $entry, MealPlanner $planner): array
+    {
+        if ($entry->status !== MealEntryStatus::Pending) {
+            throw ValidationException::withMessages([
+                'meal_plan' => __('Only planned meals can be swapped.'),
+            ]);
+        }
+
+        $user = $entry->user;
+        $goal = $this->goalOn($user, $entry->eaten_on);
+        $rest = $user->mealEntries()
+            ->onDate($entry->eaten_on)
+            ->whereKeyNot($entry->id)
+            ->with('recipeVersion:id,recipe_id')
+            ->get();
+        $currentRecipeId = $entry->recipeVersion?->recipe_id;
+
+        $request = $this->buildRequest($user, $goal, [$entry->meal_type], $rest, array_filter([$currentRecipeId]));
+        [$version] = $this->validatedVersions($request, $planner->plan($request));
+
+        $entry->fillFromRecipeVersion($version)->save();
+
+        return [
+            'entry' => $entry,
+            'fits_calorie_window' => $this->fitsWindow($request, $entry->calories),
+        ];
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private function goalOn(User $user, CarbonInterface $date): NutritionGoal
+    {
+        return $user->goalOn($date) ?? throw ValidationException::withMessages([
+            'meal_plan' => __('Set a nutrition goal before planning a day.'),
+        ]);
+    }
+
+    private function fitsWindow(MealPlanRequest $request, int $calories): bool
+    {
+        [$minCalories, $maxCalories] = $request->calorieWindow;
+
+        return $calories >= $minCalories && $calories <= $maxCalories;
     }
 
     /**
@@ -104,23 +152,27 @@ class GenerateMealPlan
     }
 
     /**
+     * Build the planner's request: the goal minus the fixed entries, with recipes already in those
+     * entries (and any extra excluded ones) left out of the candidates.
+     *
      * @param  list<MealType>  $slots
-     * @param  Collection<int, MealEntry>  $eaten
+     * @param  Collection<int, MealEntry>  $fixed
+     * @param  array<int, int>  $excludedRecipeIds
      */
-    private function buildRequest(User $user, NutritionGoal $goal, array $slots, Collection $eaten): MealPlanRequest
+    private function buildRequest(User $user, NutritionGoal $goal, array $slots, Collection $fixed, array $excludedRecipeIds = []): MealPlanRequest
     {
-        $eatenCalories = (int) $eaten->sum('calories');
-        $eatenProtein = (float) $eaten->sum(fn (MealEntry $entry): float => (float) $entry->protein_g);
+        $eatenCalories = (int) $fixed->sum('calories');
+        $eatenProtein = (float) $fixed->sum(fn (MealEntry $entry): float => (float) $entry->protein_g);
         $profile = $user->coachProfile;
 
         [$minCalories, $maxCalories] = $profile === null
             ? [$goal->calories - 100, $goal->calories + 100]
             : CalculateCoachTargets::calorieRange($goal->calories, $profile->sex);
 
-        $eatenRecipeIds = array_values($eaten
+        $eatenRecipeIds = array_values(array_unique([...$excludedRecipeIds, ...$fixed
             ->map(fn (MealEntry $entry): ?int => $entry->recipeVersion?->recipe_id)
             ->filter()
-            ->all());
+            ->all()]));
 
         return new MealPlanRequest(
             slots: $slots,

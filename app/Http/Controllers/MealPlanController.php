@@ -7,10 +7,12 @@ use App\Actions\MealPlans\GenerateMealPlan;
 use App\Actions\MealPlans\MealPlanFailed;
 use App\Enums\MealEntryStatus;
 use App\Http\Requests\StoreMealPlanRequest;
+use App\Models\MealEntry;
 use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Date;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 
 class MealPlanController extends Controller
@@ -38,6 +40,32 @@ class MealPlanController extends Controller
         Inertia::flash('toast', $plan['fits_calorie_window']
             ? ['type' => 'success', 'message' => $message]
             : ['type' => 'warning', 'message' => $message.' '.__('No combination fit your calorie range, so this is the closest match.')]);
+
+        return back();
+    }
+
+    /**
+     * Swap one planned meal for a different recipe, keeping the rest of the day's plan.
+     */
+    public function swap(StoreMealPlanRequest $request, MealEntry $mealEntry, GenerateMealPlan $generateMealPlan): RedirectResponse
+    {
+        Gate::authorize('update', $mealEntry);
+
+        $previousName = $mealEntry->name;
+
+        try {
+            $swap = $generateMealPlan->swap($mealEntry, app($request->plannerType()->plannerClass()));
+        } catch (MealPlanFailed $exception) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => $exception->getMessage()]);
+
+            return back();
+        }
+
+        $message = __('Swapped :previous for :name.', ['previous' => $previousName, 'name' => $swap['entry']->name]);
+
+        Inertia::flash('toast', $swap['fits_calorie_window']
+            ? ['type' => 'success', 'message' => $message]
+            : ['type' => 'warning', 'message' => $message.' '.__('Nothing fit your calorie range, so this is the closest match.')]);
 
         return back();
     }

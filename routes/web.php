@@ -17,6 +17,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::resource('meal-entries', MealEntryController::class)->only(['store', 'update', 'destroy']);
     Route::post('meal-entries/{meal_entry}/confirm', [MealEntryController::class, 'confirm'])->name('meal-entries.confirm');
+    Route::post('meal-entries/{meal_entry}/swap', [MealPlanController::class, 'swap'])->name('meal-entries.swap');
 
     Route::controller(MealPlanController::class)
         ->prefix('meal-plans/{date}')

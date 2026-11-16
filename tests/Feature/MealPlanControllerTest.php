@@ -209,6 +209,62 @@ it('shows an error and saves nothing when claude fails or picks something invali
     'request failed' => [fn ($expectation) => $expectation->andThrow(new MealPlanFailed('Claude couldn\'t be reached.'))],
 ]);
 
+it('swaps one planned meal for a different recipe in the same slot, keeping the rest of the day', function () {
+    $library = planLibrary();
+    $otherLunch = planRecipe(MealType::Lunch, [500, 600]);
+    $user = userWithGoal();
+    $this->actingAs($user)->post(route('meal-plans.store', '2026-11-16'), ['planner' => 'search']);
+    $lunch = $user->mealEntries()->where('meal_type', MealType::Lunch)->sole();
+    $rest = $user->mealEntries()->whereKeyNot($lunch->id)->orderBy('id')->get(['id', 'recipe_version_id']);
+    $previousRecipeId = $lunch->recipeVersion?->recipe_id;
+
+    $this->actingAs($user)->post(route('meal-entries.swap', $lunch), ['planner' => 'search'])
+        ->assertInertiaFlash('toast.type', 'success');
+
+    $lunch->refresh();
+    $newRecipeId = $lunch->recipeVersion?->recipe_id;
+    expect($newRecipeId)->not->toBe($previousRecipeId)
+        ->and($newRecipeId)->toBeIn([$library['lunch']->id, $otherLunch->id])
+        ->and($lunch->meal_type)->toBe(MealType::Lunch)
+        ->and($lunch->status)->toBe(MealEntryStatus::Pending)
+        ->and($user->mealEntries()->whereKeyNot($lunch->id)->orderBy('id')->get(['id', 'recipe_version_id'])->toArray())->toBe($rest->toArray())
+        ->and((int) $user->mealEntries()->sum('calories'))->toBeGreaterThanOrEqual(1900)->toBeLessThanOrEqual(2100);
+});
+
+it('refuses to swap a meal that was already eaten', function () {
+    planLibrary();
+    $user = userWithGoal();
+    $eaten = MealEntry::factory()->for($user)->create(['eaten_on' => '2026-11-16', 'meal_type' => MealType::Lunch]);
+    $versionId = $eaten->recipe_version_id;
+
+    $this->actingAs($user)->post(route('meal-entries.swap', $eaten), ['planner' => 'search'])
+        ->assertSessionHasErrors(['meal_plan' => 'Only planned meals can be swapped.']);
+
+    expect($eaten->refresh()->recipe_version_id)->toBe($versionId);
+});
+
+it('shows an error and keeps the meal when there is no other recipe for the slot', function () {
+    $library = planLibrary();
+    $user = userWithGoal();
+    $lunch = MealEntry::factory()->for($user)->pending()
+        ->fromRecipeVersion($library['lunch']->versions()->first())
+        ->create(['eaten_on' => '2026-11-16', 'meal_type' => MealType::Lunch]);
+
+    $this->actingAs($user)->post(route('meal-entries.swap', $lunch), ['planner' => 'search'])
+        ->assertInertiaFlash('toast.type', 'error');
+
+    expect($lunch->refresh()->recipeVersion?->recipe_id)->toBe($library['lunch']->id);
+});
+
+it('forbids swapping another user\'s planned meal', function () {
+    $entry = MealEntry::factory()->pending()->create(['eaten_on' => '2026-11-16']);
+    $versionId = $entry->recipe_version_id;
+
+    $this->actingAs(userWithGoal())->post(route('meal-entries.swap', $entry), ['planner' => 'search'])->assertForbidden();
+
+    expect($entry->refresh()->recipe_version_id)->toBe($versionId);
+});
+
 it('marks a planned entry as eaten so it counts and recalculates the coach goal', function () {
     $user = User::factory()->create();
     CoachProfile::factory()->for($user)->create(['started_on' => '2026-11-16']);
