@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Actions\Coach\SyncCoachGoal;
+use App\Enums\MealEntryStatus;
 use App\Enums\MealType;
 use App\Http\Requests\StoreMealEntryRequest;
 use App\Http\Requests\UpdateMealEntryRequest;
@@ -49,6 +50,22 @@ class MealEntryController extends Controller
         $mealEntry->rescaleTo($request->float('servings'));
         $mealEntry->save();
         $this->syncCoachGoal->handle($request->user());
+
+        return back();
+    }
+
+    /**
+     * Confirm a planned entry was eaten so it counts toward the day's totals.
+     */
+    public function confirm(Request $request, MealEntry $mealEntry): RedirectResponse
+    {
+        Gate::authorize('update', $mealEntry);
+
+        $mealEntry->status = MealEntryStatus::Eaten;
+        $mealEntry->save();
+        $this->syncCoachGoal->handle($request->user());
+
+        Inertia::flash('toast', ['type' => 'success', 'message' => __(':name marked as eaten.', ['name' => $mealEntry->name])]);
 
         return back();
     }

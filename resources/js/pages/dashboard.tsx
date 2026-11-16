@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import DailySummary from '@/components/daily-summary';
 import DiaryDateNav from '@/components/diary-date-nav';
+import MealPlanCard from '@/components/meal-plan-card';
 import MealSection from '@/components/meal-section';
 import WeighInCard from '@/components/weigh-in-card';
 import { dashboard } from '@/routes';
@@ -8,6 +9,7 @@ import type {
     DailyCheckIn,
     DashboardCoach,
     DiaryMeal,
+    MealPlanSummary,
     NutritionGoal,
     NutritionSummary,
 } from '@/types';
@@ -20,6 +22,7 @@ type Props = {
     meals: DiaryMeal[];
     coach: DashboardCoach | null;
     checkIn: DailyCheckIn;
+    mealPlan: MealPlanSummary;
 };
 
 export default function Dashboard({
@@ -30,6 +33,7 @@ export default function Dashboard({
     meals,
     coach,
     checkIn,
+    mealPlan,
 }: Props) {
     return (
         <>
@@ -65,6 +69,8 @@ export default function Dashboard({
                         phase={coach?.phase.value ?? null}
                     />
                 </div>
+
+                <MealPlanCard plan={mealPlan} date={date} />
 
                 <div className="grid gap-4 lg:grid-cols-2">
                     {meals.map((meal) => (

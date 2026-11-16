@@ -24,11 +24,12 @@ export default function MealSection({
     date: string;
 }) {
     const Icon = mealTypeIcons[meal.type];
-    const calories = meal.entries.reduce((sum, e) => sum + e.calories, 0);
-    const protein = meal.entries.reduce(
-        (sum, e) => sum + grams(e.protein_g),
-        0,
-    );
+    const eaten = meal.entries.filter((e) => e.status === 'eaten');
+    const plannedCalories = meal.entries
+        .filter((e) => e.status === 'pending')
+        .reduce((sum, e) => sum + e.calories, 0);
+    const calories = eaten.reduce((sum, e) => sum + e.calories, 0);
+    const protein = eaten.reduce((sum, e) => sum + grams(e.protein_g), 0);
 
     return (
         <section className="flex flex-col overflow-hidden rounded-2xl border bg-card shadow-xs">
@@ -41,9 +42,11 @@ export default function MealSection({
                 <div className="min-w-0 flex-1">
                     <h2 className="font-medium">{meal.label}</h2>
                     <p className="text-xs text-muted-foreground tabular-nums">
-                        {meal.entries.length === 0
+                        {eaten.length === 0
                             ? 'Nothing logged yet'
                             : `${calories.toLocaleString()} kcal · ${formatGrams(Math.round(protein * 10) / 10)} protein`}
+                        {plannedCalories > 0 &&
+                            ` · +${plannedCalories.toLocaleString()} kcal planned`}
                     </p>
                 </div>
                 <AddMealDialog

@@ -47,6 +47,25 @@ test('the dashboard shows the requested day\'s entries for the user in four diar
     );
 });
 
+test('the dashboard shows planned entries in their section with a plan summary, outside the day\'s totals', function () {
+    $user = User::factory()->create();
+    $day = '2026-11-10';
+    $eaten = MealEntry::factory()->for($user)->create(['eaten_on' => $day, 'meal_type' => MealType::Lunch]);
+    $planned = MealEntry::factory()->for($user)->pending()->create(['eaten_on' => $day, 'meal_type' => MealType::Lunch]);
+
+    $response = $this->actingAs($user)->get(route('dashboard', ['date' => $day]));
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('summary.totals.calories', $eaten->calories)
+        ->where('meals.1.entries.0.status', 'eaten')
+        ->where('meals.1.entries.1.id', $planned->id)
+        ->where('meals.1.entries.1.status', 'pending')
+        ->where('mealPlan.pending_count', 1)
+        ->where('mealPlan.planned.calories', $planned->calories)
+        ->where('mealPlan.planners.0.value', 'search')
+    );
+});
+
 test('the dashboard falls back to today for a malformed date', function () {
     $this->travelTo('2026-11-14 09:00');
 

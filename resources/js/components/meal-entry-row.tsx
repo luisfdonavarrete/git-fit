@@ -1,6 +1,7 @@
 import { router } from '@inertiajs/react';
 import {
     ArrowRightLeft,
+    Check,
     MoreHorizontal,
     Pencil,
     Trash2,
@@ -8,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import {
+    confirm,
     destroy,
     update,
 } from '@/actions/App/Http/Controllers/MealEntryController';
@@ -35,6 +37,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { mealTypeIcons, mealTypeLabels } from '@/lib/meal-type';
 import { formatGrams, formatServings, grams } from '@/lib/nutrition';
+import { cn } from '@/lib/utils';
 import type { DiaryEntry, DiaryMealType } from '@/types';
 
 const diarySections: DiaryMealType[] = [
@@ -63,9 +66,24 @@ export default function MealEntryRow({
     const remove = () =>
         router.visit(destroy(entry.id), { preserveScroll: true });
 
+    const isPending = entry.status === 'pending';
+    const markEaten = () =>
+        router.visit(confirm(entry.id), { preserveScroll: true });
+
     return (
-        <li className="group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/40">
-            <div className="size-11 shrink-0 overflow-hidden rounded-lg bg-muted">
+        <li
+            className={cn(
+                'group flex items-center gap-3 px-4 py-3 transition-colors hover:bg-accent/40',
+                isPending && 'bg-violet-500/[0.03]',
+            )}
+        >
+            <div
+                className={cn(
+                    'size-11 shrink-0 overflow-hidden rounded-lg bg-muted',
+                    isPending &&
+                        'opacity-60 outline-1 outline-violet-500/50 outline-dashed',
+                )}
+            >
                 {entry.image_url ? (
                     <img
                         src={entry.image_url}
@@ -89,6 +107,11 @@ export default function MealEntryRow({
                     {entry.name}
                 </span>
                 <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    {isPending && (
+                        <span className="rounded-full bg-violet-500/10 px-1.5 text-[11px] font-medium text-violet-600 dark:text-violet-400">
+                            Planned
+                        </span>
+                    )}
                     <CalorieRangeBadge
                         value={entry.calorie_range}
                         className="px-1.5 py-0 text-[11px]"
@@ -97,7 +120,12 @@ export default function MealEntryRow({
                 </span>
             </button>
 
-            <div className="text-right tabular-nums">
+            <div
+                className={cn(
+                    'text-right tabular-nums',
+                    isPending && 'opacity-60',
+                )}
+            >
                 <span className="block text-sm font-semibold">
                     {entry.calories}
                 </span>
@@ -105,6 +133,19 @@ export default function MealEntryRow({
                     {formatGrams(grams(entry.protein_g))} P
                 </span>
             </div>
+
+            {isPending && (
+                <Button
+                    variant="outline"
+                    size="icon"
+                    className="size-8 shrink-0 rounded-full text-violet-600 dark:text-violet-400"
+                    onClick={markEaten}
+                    aria-label={`I ate ${entry.name}`}
+                    title="I ate this"
+                >
+                    <Check />
+                </Button>
+            )}
 
             <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -118,6 +159,11 @@ export default function MealEntryRow({
                     </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-44">
+                    {isPending && (
+                        <DropdownMenuItem onSelect={markEaten}>
+                            <Check />I ate this
+                        </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onSelect={() => setEditing(true)}>
                         <Pencil />
                         Edit servings
