@@ -162,3 +162,47 @@ it('uses the female activity multiplier, protein and fat shares', function () {
         ->and($targets['protein_g'])->toBe(round(0.8 * 140, 1))
         ->and($targets['fat_g'])->toBe(round(0.30 * $maintenance / 9, 1));
 });
+
+it('explains the targets with the inputs behind each formula', function () {
+    $targets = (new CalculateCoachTargets)->handle(sheetProfile(), [coachWeek(1, 167.54), coachWeek(2, 166.76), coachWeek(3, 166.5)], Carbon::parse('2026-05-13'));
+
+    expect($targets['breakdown'])->toMatchArray([
+        'body_fat_pct' => 24.0,
+        'activity_multiplier' => 1.5,
+        'rate_rule' => 'Cutting at 15–25% body fat: -0.7% of body weight per week.',
+        'calorie_floor' => 1500,
+        'is_floored' => false,
+        'protein_per_lb' => [0.8, 0.73, 1.0],
+        'fat_share' => [0.22, 0.15, 0.30],
+        'measured_weeks' => [],
+    ])
+        ->and(WeightUnit::Lb->fromKg($targets['breakdown']['lean_mass_kg']))->toEqualWithDelta(129.81, 0.01)
+        ->and((int) round($targets['breakdown']['unfloored_calories']))->toBe($targets['calories']);
+});
+
+it('lists the measured weeks that make up maintenance', function () {
+    $weeks = [
+        coachWeek(1, 167.54, measuredTdee: 3403),
+        coachWeek(2, 166.4, measuredTdee: 2628),
+        coachWeek(3, 166.66, measuredTdee: 1700),
+        coachWeek(4, 166.0, measuredTdee: 1500),
+    ];
+
+    $measured = (new CalculateCoachTargets)->handle(sheetProfile(), $weeks, Carbon::parse('2026-05-18'))['breakdown']['measured_weeks'];
+
+    expect(array_column($measured, 'number'))->toBe([2, 3])
+        ->and(array_column($measured, 'tdee'))->toBe([2628.0, 1700.0])
+        ->and(WeightUnit::Lb->fromKg((float) $measured[0]['weight_change_kg']))->toEqualWithDelta(-1.14, 0.001);
+});
+
+it('flags a target raised to the calorie floor', function () {
+    $targets = (new CalculateCoachTargets)->handle(
+        sheetProfile(['starting_weight_kg' => 45, 'weekly_change_override_kg' => -1]),
+        [],
+        Carbon::parse('2026-04-27'),
+    );
+
+    expect($targets['breakdown']['is_floored'])->toBeTrue()
+        ->and($targets['breakdown']['unfloored_calories'])->toBeLessThan(1500)
+        ->and($targets['breakdown']['rate_rule'])->toBe('You set a custom weekly change.');
+});

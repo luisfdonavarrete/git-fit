@@ -1,6 +1,7 @@
 import { Link } from '@inertiajs/react';
 import {
     Beef,
+    Calculator,
     CalendarClock,
     Flame,
     PencilLine,
@@ -140,6 +141,16 @@ export default function DailySummary({
                             diary on {dayLabel(coach.adapts_from, today)}. Until
                             then, stick with these numbers.
                         </p>
+                    )}
+
+                    {coach && (
+                        <Link
+                            href={`${coachEdit.url()}#formulas`}
+                            className="inline-flex items-center gap-1 text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                        >
+                            <Calculator className="size-3" />
+                            How are these targets calculated?
+                        </Link>
                     )}
 
                     {calorieTarget === null && (
