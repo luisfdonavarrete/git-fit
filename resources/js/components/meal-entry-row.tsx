@@ -1,6 +1,7 @@
 import { router, usePage } from '@inertiajs/react';
 import {
     ArrowRightLeft,
+    BookOpen,
     Bot,
     Check,
     MoreHorizontal,
@@ -18,6 +19,7 @@ import {
 } from '@/actions/App/Http/Controllers/MealEntryController';
 import { swap } from '@/actions/App/Http/Controllers/MealPlanController';
 import CalorieRangeBadge from '@/components/calorie-range-badge';
+import MealEntryRecipeSheet from '@/components/meal-entry-recipe-sheet';
 import ServingsStepper from '@/components/servings-stepper';
 import { Button } from '@/components/ui/button';
 import {
@@ -64,6 +66,7 @@ export default function MealEntryRow({
     mealType: DiaryMealType;
 }) {
     const [editing, setEditing] = useState(false);
+    const [viewing, setViewing] = useState(false);
     const servings = Number(entry.servings);
 
     const move = (target: DiaryMealType) =>
@@ -106,7 +109,11 @@ export default function MealEntryRow({
                 isPending && 'bg-violet-500/[0.03]',
             )}
         >
-            <div
+            <button
+                type="button"
+                onClick={() => setViewing(true)}
+                tabIndex={-1}
+                aria-hidden="true"
                 className={cn(
                     'size-11 shrink-0 overflow-hidden rounded-lg bg-muted',
                     isPending &&
@@ -125,12 +132,13 @@ export default function MealEntryRow({
                         <UtensilsCrossed className="size-4 text-muted-foreground/50" />
                     </div>
                 )}
-            </div>
+            </button>
 
             <button
                 type="button"
-                onClick={() => setEditing(true)}
-                className="min-w-0 flex-1 text-left outline-none"
+                onClick={() => setViewing(true)}
+                aria-label={`View recipe for ${entry.name}`}
+                className="min-w-0 flex-1 rounded-sm text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
             >
                 <span className="block truncate text-sm font-medium">
                     {entry.name}
@@ -224,6 +232,10 @@ export default function MealEntryRow({
                             <DropdownMenuSeparator />
                         </>
                     )}
+                    <DropdownMenuItem onSelect={() => setViewing(true)}>
+                        <BookOpen />
+                        View recipe
+                    </DropdownMenuItem>
                     <DropdownMenuItem onSelect={() => setEditing(true)}>
                         <Pencil />
                         Edit servings
@@ -259,6 +271,11 @@ export default function MealEntryRow({
                 </DropdownMenuContent>
             </DropdownMenu>
 
+            <MealEntryRecipeSheet
+                entry={entry}
+                open={viewing}
+                onOpenChange={setViewing}
+            />
             <EditServingsDialog
                 entry={entry}
                 open={editing}

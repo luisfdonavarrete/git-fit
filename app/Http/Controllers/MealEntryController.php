@@ -8,7 +8,10 @@ use App\Enums\MealType;
 use App\Http\Requests\StoreMealEntryRequest;
 use App\Http\Requests\UpdateMealEntryRequest;
 use App\Models\MealEntry;
+use App\Models\RecipeIngredient;
+use App\Models\RecipeStep;
 use App\Models\RecipeVersion;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -17,6 +20,37 @@ use Inertia\Inertia;
 class MealEntryController extends Controller
 {
     public function __construct(private SyncCoachGoal $syncCoachGoal) {}
+
+    /**
+     * The recipe behind an entry (ingredients, directions and notes) for a read-only view.
+     * The recipe is null when its version has since been deleted.
+     */
+    public function show(MealEntry $mealEntry): JsonResponse
+    {
+        Gate::authorize('view', $mealEntry);
+
+        $version = $mealEntry->recipeVersion?->load(['recipe:id,description,image_path', 'ingredients', 'steps']);
+
+        return response()->json([
+            'recipe' => $version === null ? null : [
+                'description' => $version->recipe->description,
+                'image_url' => $version->recipe->image_url,
+                'prep_minutes' => $version->prep_minutes,
+                'notes' => $version->notes,
+                'ingredients' => $version->ingredients->map(fn (RecipeIngredient $ingredient): array => [
+                    'id' => $ingredient->id,
+                    'name' => $ingredient->name,
+                    'quantity' => $ingredient->quantity,
+                    'unit' => $ingredient->unit,
+                    'note' => $ingredient->note,
+                ])->values()->all(),
+                'steps' => $version->steps->map(fn (RecipeStep $step): array => [
+                    'id' => $step->id,
+                    'instruction' => $step->instruction,
+                ])->values()->all(),
+            ],
+        ]);
+    }
 
     /**
      * Log a recipe version to a section of the user's diary.

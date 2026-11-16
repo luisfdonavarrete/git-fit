@@ -15,7 +15,7 @@ Route::get('/', fn () => auth()->check() ? to_route('dashboard') : to_route('log
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'show'])->name('dashboard');
 
-    Route::resource('meal-entries', MealEntryController::class)->only(['store', 'update', 'destroy']);
+    Route::resource('meal-entries', MealEntryController::class)->only(['show', 'store', 'update', 'destroy']);
     Route::post('meal-entries/{meal_entry}/confirm', [MealEntryController::class, 'confirm'])->name('meal-entries.confirm');
     Route::post('meal-entries/{meal_entry}/swap', [MealPlanController::class, 'swap'])->name('meal-entries.swap');
 
