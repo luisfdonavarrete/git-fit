@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\CalorieRange;
+use App\Enums\MealEntryStatus;
 use App\Enums\MealType;
 use Carbon\CarbonInterface;
 use Database\Factories\MealEntryFactory;
@@ -22,6 +23,7 @@ use Illuminate\Support\Carbon;
  * @property int|null $recipe_version_id
  * @property Carbon $eaten_on
  * @property MealType $meal_type
+ * @property MealEntryStatus $status
  * @property string $servings
  * @property string $name
  * @property CalorieRange $calorie_range
@@ -146,6 +148,26 @@ class MealEntry extends Model
     }
 
     /**
+     * Limit to entries the user actually ate; only these count toward totals.
+     *
+     * @param  Builder<MealEntry>  $query
+     */
+    public function scopeEaten(Builder $query): void
+    {
+        $query->where('status', MealEntryStatus::Eaten);
+    }
+
+    /**
+     * Limit to planned entries the user hasn't confirmed yet.
+     *
+     * @param  Builder<MealEntry>  $query
+     */
+    public function scopePending(Builder $query): void
+    {
+        $query->where('status', MealEntryStatus::Pending);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -155,6 +177,7 @@ class MealEntry extends Model
         return [
             'eaten_on' => 'date',
             'meal_type' => MealType::class,
+            'status' => MealEntryStatus::class,
             'servings' => 'decimal:2',
             'calorie_range' => CalorieRange::class,
             'calories' => 'integer',

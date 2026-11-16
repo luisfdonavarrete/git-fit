@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\MealEntryStatus;
 use App\Enums\MealType;
 use App\Models\MealEntry;
 use App\Models\RecipeVersion;
@@ -24,6 +25,7 @@ class MealEntryFactory extends Factory
             'user_id' => User::factory(),
             'eaten_on' => today(),
             'meal_type' => fake()->randomElement(MealType::cases()),
+            'status' => MealEntryStatus::Eaten,
         ];
     }
 
@@ -48,6 +50,16 @@ class MealEntryFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'recipe_version_id' => $version->id,
             'servings' => $servings,
+        ]);
+    }
+
+    /**
+     * A planned entry the user hasn't confirmed eating yet.
+     */
+    public function pending(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'status' => MealEntryStatus::Pending,
         ]);
     }
 }
