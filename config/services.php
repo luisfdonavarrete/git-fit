@@ -14,6 +14,11 @@ return [
     |
     */
 
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+        'meal_plan_model' => env('ANTHROPIC_MEAL_PLAN_MODEL', 'claude-opus-5-5'),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
