@@ -94,7 +94,8 @@ export default function CoachEdit({ profile, targets, today, options }: Props) {
                     : data.weekly_change_override,
         }));
         form.submit(update(), {
-            preserveScroll: true,
+            // On first setup, scroll up so the newly calculated targets are in view.
+            preserveScroll: profile !== null,
             onSuccess: () => form.setDefaults(),
         });
     };

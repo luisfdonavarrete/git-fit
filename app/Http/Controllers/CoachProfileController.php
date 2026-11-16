@@ -70,9 +70,9 @@ class CoachProfileController extends Controller
         $syncCoachGoal->handle($user->refresh());
 
         Inertia::flash('toast', ['type' => 'success', 'message' => $isFirstSetup
-            ? __('Your coach is set up. Targets are on your dashboard.')
+            ? __('Your coach is set up. Here are this week\'s targets.')
             : __('Coach settings saved. This week\'s targets were updated.')]);
 
-        return $isFirstSetup ? to_route('dashboard') : back();
+        return to_route('coach.edit');
     }
 }

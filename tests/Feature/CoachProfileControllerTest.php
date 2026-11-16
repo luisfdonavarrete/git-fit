@@ -47,7 +47,7 @@ it('sets up the coach in kg and writes this week\'s goal', function () {
         'weekly_change_override' => -0.4,
     ]));
 
-    $response->assertRedirect(route('dashboard'));
+    $response->assertRedirect(route('coach.edit'));
     $profile = $user->coachProfile()->sole();
     expect($profile->weight_unit)->toBe(WeightUnit::Kg)
         ->and($profile->starting_weight_kg)->toBe('77.50')
@@ -70,7 +70,7 @@ it('updates the existing profile and returns to the coach page', function () {
     $user = User::factory()->create();
     CoachProfile::factory()->for($user)->create();
 
-    $response = $this->actingAs($user)->from(route('coach.edit'))
+    $response = $this->actingAs($user)->from(route('dashboard'))
         ->put(route('coach.update'), coachAnswers(['main_goal' => 'maintain']));
 
     $response->assertRedirect(route('coach.edit'));
