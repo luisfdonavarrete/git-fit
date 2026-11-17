@@ -33,13 +33,14 @@ class DashboardController extends Controller
         PresentCoachTargets $presentCoachTargets,
     ): Response {
         $user = $request->user();
-        $date = $this->requestedDate($request);
+        $today = $user->localToday();
+        $date = $this->requestedDate($request, $today);
         $profile = $user->coachProfile;
         $unit = $profile->weight_unit ?? WeightUnit::Lb;
         $coach = null;
 
         if ($profile !== null) {
-            $asOf = today()->max($profile->started_on);
+            $asOf = $today->max($profile->started_on);
             $targets = $calculateCoachTargets->handle($profile, $buildCoachWeeks->handle($profile, $asOf), $asOf);
             $weekStartsOn = $profile->weekStartsOn($targets['current_week'])->toDateString();
 
@@ -69,9 +70,9 @@ class DashboardController extends Controller
 
         return Inertia::render('dashboard', [
             'date' => $date->toDateString(),
-            'today' => today()->toDateString(),
+            'today' => $today->toDateString(),
             'summary' => $user->nutritionSummaryFor($date),
-            'goal' => $user->goalOn(today())?->only('calories', 'protein_g'),
+            'goal' => $user->goalOn($today)?->only('calories', 'protein_g'),
             'coach' => $coach,
             'checkIn' => $this->checkIn($user, $date, $unit),
             'mealPlan' => [
@@ -136,12 +137,12 @@ class DashboardController extends Controller
     /**
      * The diary day from the query string, falling back to today when missing or malformed.
      */
-    private function requestedDate(Request $request): CarbonInterface
+    private function requestedDate(Request $request, CarbonInterface $today): CarbonInterface
     {
         $value = $request->string('date')->value();
 
         if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) !== 1 || ! checkdate((int) substr($value, 5, 2), (int) substr($value, 8, 2), (int) substr($value, 0, 4))) {
-            return today();
+            return $today;
         }
 
         return Date::parse($value)->startOfDay();

@@ -26,7 +26,7 @@ class SyncCoachGoal
             return null;
         }
 
-        $asOf = ($today ?? today())->max($profile->started_on);
+        $asOf = ($today ?? $user->localToday())->max($profile->started_on);
         $targets = $this->calculateCoachTargets->handle($profile, $this->buildCoachWeeks->handle($profile, $asOf), $asOf);
 
         return $user->nutritionGoals()->updateOrCreate(

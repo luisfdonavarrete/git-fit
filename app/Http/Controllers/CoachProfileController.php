@@ -23,11 +23,12 @@ class CoachProfileController extends Controller
      */
     public function edit(Request $request, BuildCoachWeeks $buildCoachWeeks, CalculateCoachTargets $calculateCoachTargets, PresentCoachTargets $presentCoachTargets): Response
     {
+        $today = $request->user()->localToday();
         $profile = $request->user()->coachProfile;
         $targets = null;
 
         if ($profile !== null) {
-            $asOf = today()->max($profile->started_on);
+            $asOf = $today->max($profile->started_on);
             $targets = $presentCoachTargets->handle(
                 $calculateCoachTargets->handle($profile, $buildCoachWeeks->handle($profile, $asOf), $asOf),
                 $profile->weight_unit,
@@ -48,7 +49,7 @@ class CoachProfileController extends Controller
                     : round($profile->weight_unit->fromKg((float) $profile->weekly_change_override_kg), 2),
             ],
             'targets' => $targets,
-            'today' => today()->toDateString(),
+            'today' => $today->toDateString(),
             'options' => [
                 'weightUnits' => WeightUnit::options(),
                 'sexes' => Sex::options(),

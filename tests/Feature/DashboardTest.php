@@ -101,3 +101,17 @@ test('the dashboard has no coach data until the coach is set up', function () {
 
     $response->assertInertia(fn (Assert $page) => $page->where('coach', null)->where('checkIn.weight', null));
 });
+
+test('today is the user\'s local day, not the UTC day', function (?string $timezone, string $today) {
+    $this->travelTo('2026-11-17 01:15:00');
+    $user = User::factory()->create(['timezone' => $timezone]);
+
+    $response = $this->actingAs($user)->get(route('dashboard'));
+
+    $response->assertInertia(fn (Assert $page) => $page
+        ->where('today', $today)
+        ->where('date', $today));
+})->with([
+    'evening in New York' => ['America/New_York', '2026-11-16'],
+    'no timezone yet falls back to UTC' => [null, '2026-11-17'],
+]);

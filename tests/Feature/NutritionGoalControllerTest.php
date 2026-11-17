@@ -34,3 +34,12 @@ it('rejects unrealistic goals', function (array $input, string $field) {
     'too much protein' => [['protein_g' => 600], 'protein_g'],
     'missing protein' => [['protein_g' => ''], 'protein_g'],
 ]);
+
+it('starts the goal on the user\'s local day', function () {
+    $this->travelTo('2026-11-17 01:15:00');
+    $user = User::factory()->create(['timezone' => 'America/New_York']);
+
+    $this->actingAs($user)->post(route('nutrition-goal.store'), ['calories' => 2200, 'protein_g' => 160]);
+
+    expect($user->nutritionGoals()->sole()->effective_from->toDateString())->toBe('2026-11-16');
+});

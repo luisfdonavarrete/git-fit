@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Date;
 use Laravel\Fortify\Contracts\PasskeyUser;
 use Laravel\Fortify\PasskeyAuthenticatable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -21,6 +22,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property int $id
  * @property string $name
  * @property string $email
+ * @property string|null $timezone
  * @property Carbon|null $email_verified_at
  * @property string $password
  * @property string|null $two_factor_secret
@@ -71,6 +73,14 @@ class User extends Authenticatable implements MustVerifyEmail, PasskeyUser
     public function mealEntries(): HasMany
     {
         return $this->hasMany(MealEntry::class);
+    }
+
+    /**
+     * The user's current calendar day in their own timezone, as a midnight date in the app timezone.
+     */
+    public function localToday(): CarbonInterface
+    {
+        return Date::parse(now($this->timezone ?? config('app.timezone'))->toDateString());
     }
 
     /**

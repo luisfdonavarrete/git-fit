@@ -5,6 +5,7 @@ import { initializeTheme } from '@/hooks/use-appearance';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { setCookie } from '@/lib/cookies';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Git Fit';
 
@@ -36,3 +37,6 @@ void createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+
+// Let the server work out "today" in the user's own timezone...
+setCookie('timezone', Intl.DateTimeFormat().resolvedOptions().timeZone);

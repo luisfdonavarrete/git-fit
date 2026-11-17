@@ -31,7 +31,8 @@ class ProgressController extends Controller
         }
 
         $unit = $profile->weight_unit;
-        $asOf = today()->max($profile->started_on);
+        $today = $user->localToday();
+        $asOf = $today->max($profile->started_on);
         $weeks = $buildCoachWeeks->handle($profile, $asOf);
         $targets = $calculateCoachTargets->handle($profile, $weeks, $asOf);
         $goals = $user->nutritionGoals()->get();
@@ -63,7 +64,7 @@ class ProgressController extends Controller
         return Inertia::render('progress', [
             'hasCoach' => true,
             'startedOn' => $profile->started_on->toDateString(),
-            'today' => today()->toDateString(),
+            'today' => $today->toDateString(),
             'unit' => $unit->label(),
             'startingWeight' => round($unit->fromKg((float) $profile->starting_weight_kg), 1),
             'targets' => $presentCoachTargets->handle($targets, $unit),

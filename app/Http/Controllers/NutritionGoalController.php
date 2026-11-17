@@ -14,7 +14,7 @@ class NutritionGoalController extends Controller
     public function store(NutritionGoalRequest $request): RedirectResponse
     {
         $request->user()->nutritionGoals()->updateOrCreate(
-            ['effective_from' => today()],
+            ['effective_from' => $request->user()->localToday()],
             $request->validated(),
         );
 
