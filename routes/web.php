@@ -38,6 +38,3 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('check-ins.update');
     Route::get('progress', [ProgressController::class, 'show'])->name('progress');
 });
-
-require __DIR__.'/settings.php';
-require __DIR__.'/admin.php';
